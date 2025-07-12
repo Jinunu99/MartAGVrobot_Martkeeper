@@ -11,7 +11,7 @@
   
   
   
-`<본 프로젝트에서 구현하고자 하는 핵심기능>`  
+`< 본 프로젝트에서 구현하고자 하는 핵심기능 >`  
 1. 사용자 AGV  
    * 사용자는 GUI를 통해 원하는 물품을 선택한다.
    * 선택한 물품의 최소 이동 경로를 결정하여 AGV를 이동한다.
@@ -34,7 +34,7 @@
 <img width="769" height="505" alt="Image" src="https://github.com/user-attachments/assets/00f3d486-be05-4c23-9fb6-ddde2aca593c" />  
 
 
-`<Raspberry Pi>`  
+`< Raspberry Pi >`  
 1. GUI  
    * 고객 : 원하는 물품을 고를 수 있도록 구성  
    * 관리자 : 재고를 파악 및 AGV의 위치 정보  
@@ -45,7 +45,7 @@
    * Mesh 네트워크 구성 (AGV 위치 정보 공유)  
   
 
-`<STM32>`  
+`< STM32 >`  
 1. Motor Control  
 2. 적외선 Sensor : 사용자 AGV가 관리자 AGV를 감지하면 길을 터줌  
 3. IMU  
