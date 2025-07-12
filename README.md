@@ -6,38 +6,51 @@
 팀장 : 우진우  
 팀원 : 오현수, 이윤성, 이종희  
 
+  
 본 프로젝트에서 구현하고자 하는 핵심기능  
-1. 사용자 AGV
+1. 사용자 AGV  
    * 사용자는 GUI를 통해 원하는 물품을 선택한다.
    * 선택한 물품의 최소 이동 경로를 결정하여 AGV를 이동한다.
    * 모든 물품을 카트에 담으면 계산대로 이동한다.
 
-2. 관리자 AGV
+2. 관리자 AGV  
    * 카메라를 통해 일정시간 마다 마트 내부의 재고를 파악한다.
    * 재고가 없는 매대를 발견하면 해당 위치정보를 DB에 저장한다.
 
-3. 공통
+3. 공통  
    * AGV는 QR 인식을 통해 자신의 위치를 파악하고 카메라를 통해 라인을 인식하며 이동한다.
    * Mesh 네트워크를 구축하여 서로의 위치를 공유한다.
-
+  
+  
 ## USECASE Diagram  
 <img width="698" height="571" alt="Image" src="https://github.com/user-attachments/assets/fb9f603c-180b-4c33-b9d5-93e67859392e" />
 
+  
 ## High Level Design
-<img width="762" height="505" alt="Image" src="https://github.com/user-attachments/assets/2c9c05ad-da3c-466b-b20e-f51c0207e5aa" />
+<img width="769" height="505" alt="Image" src="https://github.com/user-attachments/assets/00f3d486-be05-4c23-9fb6-ddde2aca593c" />
 
+<Raspberry Pi>
+1. GUI  
+   * 고객 : 원하는 물품을 고를 수 있도록 구성  
+   * 관리자 : 재고를 파악 및 AGV의 위치 정보  
+2. 카메라
+   * 사용자 및 관리자 AGV : QR 인식(AGV의 위치 정보), 라인 감지(AGV의 안전한 이동)  
+   * 관리자 AGV : 재고 파악  
+3. LoRa
+   * Mesh 네트워크 구성 (AGV 위치 정보 공유)
 
+<STM32>
+1. Motor Control
+2. 적외선 Sensor : 사용자 AGV가 관리자 AGV를 감지하면 길을 터줌
+3. IMU
+  
 ## Clone code
-
-* (각 팀에서 프로젝트를 위해 생성한 repository에 대한 code clone 방법에 대해서 기술)
 
 ```shell
 https://github.com/Jinunu99/MartAGVrobot_Martkeeper.git
 ```
 
 ## Prerequite
-
-* (프로잭트를 실행하기 위해 필요한 dependencies 및 configuration들이 있다면, 설치 및 설정 방법에 대해 기술)
 
 ```shell
 python -m venv .venv
