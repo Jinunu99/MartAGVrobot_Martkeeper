@@ -29,6 +29,7 @@
 ## High Level Design
 <img width="769" height="505" alt="Image" src="https://github.com/user-attachments/assets/00f3d486-be05-4c23-9fb6-ddde2aca593c" />  
 <br/r>
+<br/r>
 <Raspberry Pi>  
 1. GUI  
    * 고객 : 원하는 물품을 고를 수 있도록 구성  
@@ -38,7 +39,7 @@
    * 관리자 AGV : 재고 파악  
 3. LoRa  
    * Mesh 네트워크 구성 (AGV 위치 정보 공유)  
-
+  
 <br/r>
 <STM32>  
 1. Motor Control  
