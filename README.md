@@ -20,9 +20,12 @@
    * AGV는 QR 인식을 통해 자신의 위치를 파악하고 카메라를 통해 라인을 인식하며 이동한다.
    * Mesh 네트워크를 구축하여 서로의 위치를 공유한다.
 
-## High Level Design
+## USECASE Diagram  
+<img width="698" height="571" alt="Image" src="https://github.com/user-attachments/assets/fb9f603c-180b-4c33-b9d5-93e67859392e" />
 
-* (프로젝트 아키텍쳐 기술, 전반적인 diagram 으로 설명을 권장)
+## High Level Design
+<img width="762" height="505" alt="Image" src="https://github.com/user-attachments/assets/2c9c05ad-da3c-466b-b20e-f51c0207e5aa" />
+
 
 ## Clone code
 
