@@ -23,11 +23,11 @@
   
   
 ## USECASE Diagram  
-<img width="698" height="571" alt="Image" src="https://github.com/user-attachments/assets/fb9f603c-180b-4c33-b9d5-93e67859392e" />
+<img width="698" height="571" alt="Image" src="https://github.com/user-attachments/assets/fb9f603c-180b-4c33-b9d5-93e67859392e" />  
 
   
 ## High Level Design
-<img width="769" height="505" alt="Image" src="https://github.com/user-attachments/assets/00f3d486-be05-4c23-9fb6-ddde2aca593c" />
+<img width="769" height="505" alt="Image" src="https://github.com/user-attachments/assets/00f3d486-be05-4c23-9fb6-ddde2aca593c" />  
 
 <Raspberry Pi>  
 1. GUI  
