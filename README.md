@@ -56,6 +56,28 @@
 https://github.com/Jinunu99/MartAGVrobot_Martkeeper.git
 ```
 
+## Raspberry Pi 4 Settings
+Raspbian Legacy OS (64-bit) install  
+### csi 카메라 활성화
+Legacy Camera Disable (sudo raspi-config)  
+
+sudo nano /boot/config  
+```
+# 주석 제거
+# hdmi_force_hotplug=1 설정하면 모니터가 연결되지 않았더라도 HDMI 출력을 활성화
+hdmi_force_hotplug=1
+
+hdmi_group=2  # 모니터 (DMT 표준) 사용  
+hdmi_mode=82  # 1920x1080 @ 60Hz (Full HD, 1080p)  
+
+# IMX219 카메라 센서 드라이버 활성화  
+camera_auto_detect=0
+dtoverlay=imx219
+```
+```
+libcamera-hello # 카메라 확인 
+```
+
 ## Prerequite
 
 ```shell
