@@ -4,8 +4,6 @@
 Debug/
 Release/
 *.launch
-.project
-.cproject
 
 # Build artifacts
 *.o
