@@ -188,7 +188,7 @@ class INT8Converter:
         return info
 
 
-# 사용 예시
+
 if __name__ == "__main__":
     # INT8 양자화 변환
     converter = INT8Converter(
