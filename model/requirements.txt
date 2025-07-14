@@ -1,0 +1,13 @@
+# python3 3.9.2 기준
+
+ultralytics==8.3.59
+PyYAML>=5.4.0
+openvino>=2024.0.0
+nncf>=2.9.0
+torch==2.1.2
+torchvision==0.16.2
+onnx
+opencv-python==4.10.0.82
+requests
+pandas<2.3
+numpy==1.26.4
