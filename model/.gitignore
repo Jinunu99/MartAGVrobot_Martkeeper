@@ -11,8 +11,12 @@ __pycache__/
 snack_dataset/
 split_snack_data/
 
-# 모델 출력 결과
+# 디렉토리
 snack_detection/
+snack_data_2/
+compare
+
+# 모델
 *.pt
 
 # README는 추적해야 하므로 주석 처리하거나 삭제
