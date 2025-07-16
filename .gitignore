@@ -22,4 +22,6 @@ Thumbs.db
 # Raspberry Pi
 # 가상환경
 .venv
-keeper
+.keeper
+
+__pycache__
