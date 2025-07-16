@@ -5,16 +5,17 @@ from utils.buffer import rx_queue, tx_queue
 class UARTHandler:
     def __init__(self, port='/dev/serial0', baudrate=19200, timeout=1):
         self.ser = serial.Serial(port, baudrate, timeout=timeout)
-        tx_queue = "Raspi Start!\r\n"
-    
+        tx_queue.put("Raspi Start!\r\n")  #  큐에 넣기
+
     def uart_tx(self):
         while True:
-            if not tx_queue.empty():
-                msg = tx_queue.get()
-                self.ser.write(msg.encode('ascii'))
-                self.ser.flush()
-                time.sleep(1)
-        
+            # tx_queue.get()은 큐에 데이터가 없으면 블록킹 대기함
+            msg = tx_queue.get()            
+            # 바로 보내고 플러시
+            self.ser.write(msg.encode('ascii'))
+            self.ser.flush()  # 출력 버퍼 비우기
+            # 더 이상 딜레이 없음    
+
     def uart_rx(self):
         while True:
             line = self.ser.readline()
@@ -38,14 +39,15 @@ if __name__=="__main__":
     rx_thread.start()
     
     try:
-        msg = "Hello STM32\r\n"
+        print("[UART] UART handler running. Waiting for messages...")
+
         while True:
-            tx_queue.put(msg)
+            # 수신된 데이터 있으면 출력만 함
             if not rx_queue.empty():
                 data = rx_queue.get()
-                print(f"Received from rx_queue: {data}")
-            
-            time.sleep(2)
+                print(f"[UART] Received from STM32: {data}")
+
+            time.sleep(0.1)  # CPU 과점유 방지용
     
     except KeyboardInterrupt:
         print("User KeyboardInterrupt")
