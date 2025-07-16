@@ -1,0 +1,27 @@
+# STM32CubeIDE
+.metadata/
+.settings/
+Debug/
+Release/
+*.launch
+
+# Build artifacts
+*.o
+*.d
+*.elf
+*.bin
+*.hex
+*.map
+*.list
+*.su
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Raspberry Pi
+# 가상환경
+.venv
+.keeper
+
+__pycache__
