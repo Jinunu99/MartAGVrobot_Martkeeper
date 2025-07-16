@@ -2,44 +2,80 @@ import cv2
 import numpy as np
 
 class LineTracer:
-    def __init__(self, roi_box=(380, 480, 100, 540)):
-        # ROI 범위를 설정합니다 (y1, y2, x1, x2)
-        self.y1, self.y2, self.x1, self.x2 = roi_box
+    def __init__(self, roi_boxes=None):
+        # 여러 ROI 박스 설정 (y1, y2, x1, x2)
+        if roi_boxes is None:
+            self.roi_boxes = [
+                (400, 440, 100, 540),  # 하단
+                (340, 390, 100, 540),  # 중간
+                (280, 330, 100, 540)   # 상단
+            ]
+        else:
+            self.roi_boxes = roi_boxes
 
     def get_direction(self, frame):
-        roi = frame[self.y1:self.y2, self.x1:self.x2]
-        gray = cv2.cvtColor(roi, cv2.COLOR_RGB2GRAY)
+        cx_list = []
+        annotated = frame.copy()
 
-        # 이진화 (Threshold): 밝기 기준 이하(검정색)을 흰색(255)으로 반전 추출
-        # 검정색 라인을 강조하기 위해 THRESH_BINARY_INV 사용
-        _, binary = cv2.threshold(gray, 60, 255, cv2.THRESH_BINARY_INV)
+        for (y1, y2, x1, x2) in self.roi_boxes:
+            roi = frame[y1:y2, x1:x2]
+            gray = cv2.cvtColor(roi, cv2.COLOR_RGB2GRAY)
+            _, binary = cv2.threshold(gray, 60, 255, cv2.THRESH_BINARY_INV) # 100, 255
 
-        # 모멘트를 통해 검출된 흰색 영역(라인)의 중심좌표(cx, cy)를 계산
-        M = cv2.moments(binary)
+            M = cv2.moments(binary)
+            if M['m00'] == 0:
+                cx_list.append(None)
+                continue
 
-        # 검출된 흰색 영역이 없으면 (m00 == 0), 라인이 사라졌다고 판단
-        if M['m00'] == 0:
-            return "S", frame, binary  # 방향: S = Stop
+            cx = int(M['m10'] / M['m00'])
+            cx_list.append(cx)
 
-        # 중심점 X좌표 계산 (무게중심 공식)
-        cx = int(M['m10'] / M['m00'])
+            # 시각화: 박스와 중심점
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 0, 255), 2)
+            cv2.circle(annotated, (x1 + cx, (y1 + y2)//2), 5, (0, 0, 255), -1)
 
-        # ROI의 정중앙 기준점 X좌표 (프레임 중앙과 비교할 기준)
-        mid_x = (self.x2 - self.x1) // 2
+        # ROI 중심점 연결 시각화
+        for i in range(1, len(cx_list)):
+            if cx_list[i] is not None and cx_list[i - 1] is not None:
+                y_prev = (self.roi_boxes[i - 1][0] + self.roi_boxes[i - 1][1]) // 2
+                y_curr = (self.roi_boxes[i][0] + self.roi_boxes[i][1]) // 2
+                x_prev = self.roi_boxes[i - 1][2] + cx_list[i - 1]
+                x_curr = self.roi_boxes[i][2] + cx_list[i]
+                cv2.line(annotated, (x_prev, y_prev), (x_curr, y_curr), (0, 255, 255), 2)
 
-        # === 디버깅 시각화 영역 ===
+        # 중심값이 하나도 없으면 멈춤
+        valid_cx = [c for c in cx_list if c is not None]
+        if not valid_cx:
+            return "S", annotated, None
 
-        cv2.circle(roi, (cx, 50), 5, (0, 255, 0), -1)
-        cv2.line(roi, (mid_x, 0), (mid_x, 100), (255, 0, 0), 2)
-        cv2.line(roi, (mid_x, 50), (cx, 50), (0, 0, 255), 2)
+        # 평균 중심값과 중간 기준점
+        avg_cx = np.mean(valid_cx)
+        mid_x = (self.roi_boxes[0][3] - self.roi_boxes[0][2]) // 2
 
-        # === 방향 판단 ===
+        # 복합 방향 판단을 위한 delta 계산
+        direction = "F"  # 기본: 직진
+        if len(valid_cx) >= 2:
+            deltas = [valid_cx[i] - valid_cx[i - 1] for i in range(1, len(valid_cx)) if valid_cx[i - 1] is not None]
 
-        if cx < mid_x - 40:
-            return "L", frame, binary
-        elif cx > mid_x + 40:
-            # 중심이 오른쪽으로 치우쳐 있으면 → 오른쪽 회전
-            return "R", frame, binary
-        else:
-            # 중심이 중앙 근처에 있음 → 전진
-            return "F", frame, binary
+            avg_delta = np.mean(deltas) if deltas else 0
+
+            if avg_delta > 50:
+                direction = "R"
+            elif avg_delta > 20:
+                direction = "RF"
+            elif avg_delta < -50:
+                direction = "L"
+            elif avg_delta < -20:
+                direction = "LF"
+
+        # 중앙 기준으로 추가 보정 (중간 중심값 기준)
+        if avg_cx < mid_x - 50:
+            direction = "L"
+        elif avg_cx < mid_x - 20:
+            direction = "LF"
+        elif avg_cx > mid_x + 50:
+            direction = "R"
+        elif avg_cx > mid_x + 20:
+            direction = "RF"
+
+        return direction, annotated, binary
