@@ -5,7 +5,7 @@ from utils.buffer import csi_frame
 
 # === Picamera2 초기화 ===
 class CSICamera:
-    def __init__(self, width=2400, height=2400, fmt="RGB888"):
+    def __init__(self, width=640, height=480, fmt="RGB888"):
         self.picam2 = Picamera2()
         self.picam2.preview_configuration.main.size = (width, height)
         self.picam2.preview_configuration.main.format = fmt
@@ -33,6 +33,9 @@ class CSICamera:
             if not csi_frame.full():
                 csi_frame.put(frame_resized)
 
+    def picam2_stop(self):
+        self.picam2.stop()
+
 # python -m camera.csi_camera 명령어로 실행
 if __name__ == "__main__":
     import threading
@@ -50,6 +53,6 @@ if __name__ == "__main__":
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-
-    self.picam2.stop()
+    
+    cap.picam2_stop()
     cv2.destroyAllWindows()
