@@ -1,0 +1,27 @@
+names:
+- crown_BigPie_Strawberry
+- crown_ChocoHaim
+- crown_Concho
+- crown_Potto_Cheese_Tart
+- haetae_Guun_Gamja
+- haetae_HoneyButterChip
+- haetae_Masdongsan
+- haetae_Osajjeu
+- haetae_Oyeseu
+- lotte_kkokkalkon_gosohanmas
+- nongshim_Alsaeuchip
+- nongshim_Banana_Kick
+- nongshim_ChipPotato_Original
+- nongshim_Ojingeojip
+- orion_Chocolate_Chip_Cookies
+- orion_Diget_Choco
+- orion_Diget_tongmil
+- orion_Fresh_Berry
+- orion_Gosomi
+- orion_Pocachip_Original
+- orion_chokchokhan_Chocochip
+nc: 21
+path: /home/paper/workspace/MartAGVrobot_Martkeeper/model/split_snack_data
+test: test/images
+train: train/images
+val: val/images
