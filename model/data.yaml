@@ -1,0 +1,13 @@
+train: snack_data_2/train/images
+val: snack_data_2/valid/images
+test: snack_data_2/test/images
+
+nc: 24
+names: ['Alsaeuchip', 'Backside', 'BananaKick', 'CaramelCornMaple', 'Cheetos', 'CornChips', 'Gamjakkang', 'Jjanggu', 'JollyPong', 'Kkobugchip', 'Kkochgelang', 'Kkulkkwabaegi', 'KokkalCorn', 'Koncho', 'Matdongsan', 'Ogamja', 'Pocachip_Onion', 'Pocachip_Original', 'Postick', 'Saeukkang', 'Sunchip', 'Swingchip', 'Yangpaling', 'konchi']
+
+roboflow:
+  workspace: project-5x1ny
+  project: snack-dlgc5
+  version: 3
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/project-5x1ny/snack-dlgc5/dataset/3

@@ -7,11 +7,11 @@ agvenv/
 __pycache__/
 *.pyc
 
-# dataset (데이터셋 디렉토리 무시)
-snack_dataset/
-split_snack_data/
+
 
 # 디렉토리
+
+# snack dataset
 snack_detection/
 snack_data_2/
 compare
