@@ -51,10 +51,6 @@ python -c "import bz2; print('✅ 가상환경에서 bz2 정상 작동')" -->
 # sudo systemctl enable mariadb.service -->
 
 
-
-
-
-
 # Tree
 
 ```
