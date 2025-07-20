@@ -3,79 +3,65 @@ import numpy as np
 
 class LineTracer:
     def __init__(self, roi_boxes=None):
-        # 여러 ROI 박스 설정 (y1, y2, x1, x2)
         if roi_boxes is None:
             self.roi_boxes = [
-                (400, 440, 100, 540),  # 하단
-                (340, 390, 100, 540),  # 중간
-                (280, 330, 100, 540)   # 상단
+                (400, 445, 100, 540),
+                (340, 395, 100, 540),
+                (280, 335, 100, 540),
+                (220, 275, 100, 540),
+                (160, 215, 100, 540)
             ]
         else:
             self.roi_boxes = roi_boxes
 
-    def get_direction(self, frame):
-        cx_list = []
+        # HSV 마스크 범위 설정
+        self.lower_hsv = np.array([0, 0, 0])
+        self.upper_hsv = np.array([179, 255, 80])
+
+        # ROI 가중치 (하단이 더 중요, 상단은 덜 중요)
+        self.weights = [0.3, 0.3, 0.22, 0.17, 0.11]
+
+    def get_offset(self, frame):
         annotated = frame.copy()
+        frame_height, frame_width = frame.shape[:2]
+        mid_x = frame_width // 2
 
-        for (y1, y2, x1, x2) in self.roi_boxes:
-            roi = frame[y1:y2, x1:x2]
-            gray = cv2.cvtColor(roi, cv2.COLOR_RGB2GRAY)
-            _, binary = cv2.threshold(gray, 60, 255, cv2.THRESH_BINARY_INV) # 100, 255
+        offsets = []
+        weighted_sum = 0
+        total_weight = 0
 
-            M = cv2.moments(binary)
-            if M['m00'] == 0:
-                cx_list.append(None)
+        hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
+
+        for i, (y1, y2, x1, x2) in enumerate(self.roi_boxes):
+            roi_hsv = hsv[y1:y2, x1:x2]
+            binary = cv2.inRange(roi_hsv, self.lower_hsv, self.upper_hsv)
+            
+            contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            if not contours:
                 continue
 
-            cx = int(M['m10'] / M['m00'])
-            cx_list.append(cx)
+            largest_contour = max(contours, key=cv2.contourArea)
+            area = cv2.contourArea(largest_contour)
 
-            # 시각화: 박스와 중심점
-            cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 0, 255), 2)
-            cv2.circle(annotated, (x1 + cx, (y1 + y2)//2), 5, (0, 0, 255), -1)
+            if area < 300:
+                continue
 
-        # ROI 중심점 연결 시각화
-        for i in range(1, len(cx_list)):
-            if cx_list[i] is not None and cx_list[i - 1] is not None:
-                y_prev = (self.roi_boxes[i - 1][0] + self.roi_boxes[i - 1][1]) // 2
-                y_curr = (self.roi_boxes[i][0] + self.roi_boxes[i][1]) // 2
-                x_prev = self.roi_boxes[i - 1][2] + cx_list[i - 1]
-                x_curr = self.roi_boxes[i][2] + cx_list[i]
-                cv2.line(annotated, (x_prev, y_prev), (x_curr, y_curr), (0, 255, 255), 2)
+            x, y, w, h = cv2.boundingRect(largest_contour)
+            line_cx = x1 + x + w // 2
+            offset = line_cx - mid_x
 
-        # 중심값이 하나도 없으면 멈춤
-        valid_cx = [c for c in cx_list if c is not None]
-        if not valid_cx:
-            return "S", annotated, None
+            # 누적
+            weight = self.weights[i]
+            weighted_sum += offset * weight
+            total_weight += weight
 
-        # 평균 중심값과 중간 기준점
-        avg_cx = np.mean(valid_cx)
-        mid_x = (self.roi_boxes[0][3] - self.roi_boxes[0][2]) // 2
+            # 시각화
+            cv2.rectangle(annotated, (x1 + x, y1 + y), (x1 + x + w, y1 + y + h), (0, 255, 0), 2)
+            cv2.circle(annotated, (line_cx, (y1 + y2) // 2), 4, (255, 255, 255), -1)
 
-        # 복합 방향 판단을 위한 delta 계산
-        direction = "F"  # 기본: 직진
-        if len(valid_cx) >= 2:
-            deltas = [valid_cx[i] - valid_cx[i - 1] for i in range(1, len(valid_cx)) if valid_cx[i - 1] is not None]
+        if total_weight == 0:
+            return 0, annotated, np.zeros((1, 1), dtype=np.uint8), False
 
-            avg_delta = np.mean(deltas) if deltas else 0
-
-            if avg_delta > 50:
-                direction = "R"
-            elif avg_delta > 20:
-                direction = "RF"
-            elif avg_delta < -50:
-                direction = "L"
-            elif avg_delta < -20:
-                direction = "LF"
-
-        # 중앙 기준으로 추가 보정 (중간 중심값 기준)
-        if avg_cx < mid_x - 50:
-            direction = "L"
-        elif avg_cx < mid_x - 20:
-            direction = "LF"
-        elif avg_cx > mid_x + 50:
-            direction = "R"
-        elif avg_cx > mid_x + 20:
-            direction = "RF"
-
-        return direction, annotated, binary
+        weighted_offset = int(weighted_sum / total_weight)
+        return weighted_offset, annotated, binary, True
