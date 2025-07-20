@@ -50,4 +50,11 @@ void HMC5883L_ReadMag(float mag[3]);
 void HMC5883L_ReadAll_DMA_Start(void);
 void HMC5883L_Parse_DMA(float mag[3]);
 
+void QMC5883L_Init(void);
+
+void QMC5883L_ReadMag(float mag[3]);
+
+void QMC5883L_ReadAll_DMA_Start(void);
+void QMC5883L_Parse_DMA(float mag[3]);
+
 #endif /* DEVICES_IMU_IMU_H_ */

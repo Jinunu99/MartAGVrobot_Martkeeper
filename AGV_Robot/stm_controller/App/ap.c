@@ -17,7 +17,7 @@
 extern volatile uint8_t rxFlag;                // RX 완료 플래그
 extern volatile uint8_t txFlag;                // TX 완료 플래그
 #define RX_SIZE				64
-uint8_t rxData[RX_SIZE];
+uint8_t cmd[RX_SIZE];
 
 // IMU Data 변수
 char msg[128];
@@ -25,12 +25,21 @@ float accel[3], gyro[3], mag[3], temp;
 extern volatile uint8_t i2c1Flag;
 volatile uint8_t cur_imu = 0;
 
+// Motor 관련 변수
+#define DEFAULT_SPEED		390
+#define HIGH_SPEED			850
+#define LOW_SPEED			390
+
 void apInit(void)
 {
 	SERIAL_Init();
 
-	MPU6050_Init();
-	MPU6050_ReadAll_DMA_Start();
+//	MPU6050_Init();
+	HMC5883L_Init();
+//	QMC5883L_Init();
+//	MPU6050_ReadAll_DMA_Start();
+	HMC5883L_ReadAll_DMA_Start();
+//	QMC5883L_ReadAll_DMA_Start();
 
 	MOTOR_Init();
 
@@ -57,11 +66,11 @@ void Serial_Task(void)
     }
 
     // 수신 데이터 받기
-    SERIAL_GetData(rxData);
+    SERIAL_GetData(cmd);
 
     // 수신 데이터를 USART2로 전송 (디버깅용)
-    if (strlen((char*)rxData) > 0) {
-        HAL_UART_Transmit(&huart2, rxData, strlen((char*)rxData), 100);
+    if (strlen((char*)cmd) > 0) {
+//        HAL_UART_Transmit(&huart2, cmd, strlen((char*)cmd), 100);
     }
 }
 
@@ -78,7 +87,7 @@ void ImuSensor_Task(void)
 					"ACC: X=%.2f Y=%.2f Z=%.2f | GYRO: X=%.2f Y=%.2f Z=%.2f\r\n",
 					accel[0], accel[1], accel[2],
 					gyro[0], gyro[1], gyro[2]);
-        HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 100);
+//        HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 100);
     }
     else
     {
@@ -86,6 +95,8 @@ void ImuSensor_Task(void)
         i2c1Flag = 1;
         HMC5883L_ReadAll_DMA_Start();   // HMC5883L 다음 프레임 시작
         HMC5883L_Parse_DMA(mag);
+//        QMC5883L_ReadAll_DMA_Start();
+//        QMC5883L_Parse_DMA(mag);
         snprintf(msg, sizeof(msg),
 					"MAG: X=%.2f Y=%.2f Z=%.2f\r\n",
 					mag[0], mag[1], mag[2]);
@@ -97,53 +108,60 @@ void ImuSensor_Task(void)
 void Motor_Task(void)
 {
 	// 수신된 데이터가 있는지 확인
-	if (strlen((char*)rxData) > 0)
+	if (rxFlag)
 	{
+		size_t len = strcspn((char*)cmd, "\r\n");
+		cmd[len] = '\0';
+
 		// 명령어 파싱 (첫 번째 문자로 방향 결정)
-		switch (rxData[0])
-		{
-			case 'w': // 전진
-				MECANUM_Move(MECANUM_FORWARD, 500);
-				SERIAL_PutData((uint8_t*)"Forward\r\n");
-				break;
+		switch (cmd[0]) {
+		    case 'F':
+		        MECANUM_Move(MECANUM_FORWARD, DEFAULT_SPEED, DEFAULT_SPEED);
+		        break;
 
-			case 's': // 후진
-				MECANUM_Move(MECANUM_BACKWARD, 500);
-				SERIAL_PutData((uint8_t*)"Backward\r\n");
-				break;
+		    case 'B':
+		        MECANUM_Move(MECANUM_BACKWARD, DEFAULT_SPEED, DEFAULT_SPEED);
+		        break;
 
-			case 'a': // 좌측 이동
-				MECANUM_Move(MECANUM_LEFT, 500);
-				SERIAL_PutData((uint8_t*)"Left\r\n");
-				break;
+		    case 'A':
+		        MECANUM_Move(MECANUM_LEFT, DEFAULT_SPEED, DEFAULT_SPEED);
+		        break;
 
-			case 'd': // 우측 이동
-				MECANUM_Move(MECANUM_RIGHT, 500);
-				SERIAL_PutData((uint8_t*)"Right\r\n");
-				break;
+		    case 'D':
+		        MECANUM_Move(MECANUM_RIGHT, DEFAULT_SPEED, DEFAULT_SPEED);
+		        break;
 
-			case 'q': // 좌회전
-				MECANUM_Move(MECANUM_ROTATE_LEFT, 500);
-				SERIAL_PutData((uint8_t*)"Rotate Left\r\n");
-				break;
+		    case 'L':
+		        MECANUM_Move(MECANUM_FORWARD_LEFT, DEFAULT_SPEED, DEFAULT_SPEED);
+		        break;
 
-			case 'e': // 우회전
-				MECANUM_Move(MECANUM_ROTATE_RIGHT, 500);
-				SERIAL_PutData((uint8_t*)"Rotate Right\r\n");
-				break;
+		    case 'R':
+		        MECANUM_Move(MECANUM_FORWARD_RIGHT, DEFAULT_SPEED, DEFAULT_SPEED);
+		        break;
 
-			case 'x': // 정지
-				MECANUM_Stop();
-				SERIAL_PutData((uint8_t*)"Stop\r\n");
-				break;
+		    case 'Z':
+		        MECANUM_Move(MECANUM_BACKWARD_LEFT, DEFAULT_SPEED, DEFAULT_SPEED);
+		        break;
 
-			default:
-				MECANUM_Stop();
-				SERIAL_PutData((uint8_t*)"Unknown command\r\n");
-				break;
+		    case 'C':
+		        MECANUM_Move(MECANUM_BACKWARD_RIGHT, DEFAULT_SPEED, DEFAULT_SPEED);
+		        break;
+
+		    case 'Q':
+		        MECANUM_Move(MECANUM_ROTATE_LEFT, DEFAULT_SPEED, DEFAULT_SPEED);
+		        break;
+
+		    case 'E':
+		        MECANUM_Move(MECANUM_ROTATE_RIGHT, DEFAULT_SPEED, DEFAULT_SPEED);
+		        break;
+
+		    case 'S':
+		    default:
+		        MECANUM_Stop();
+		        break;
 		}
 
 		// 수신 버퍼 클리어
-		memset(rxData, 0, RX_SIZE);
+		memset(cmd, 0, RX_SIZE);
 	}
 }
