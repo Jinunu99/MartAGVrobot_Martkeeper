@@ -9,6 +9,7 @@
 #include "i2c.h"
 #include "usart.h"
 #include "mpu6050.h"
+#include "qmc5883l.h"
 #include "hmc5883l.h"
 #include "imu.h"
 
@@ -24,6 +25,8 @@ static MPU6050_Config_t cfg = {
 };
 static uint8_t mpu6050_buff[14];
 static uint8_t hmc5883l_buff[6];
+static uint8_t qmc5883l_buff[6];
+
 volatile uint8_t i2c1Flag = 0;
 
 static int16_t accel_offset[3];
@@ -56,6 +59,15 @@ static HAL_StatusTypeDef HMC5883L_Write(uint8_t reg, uint8_t data)
 static HAL_StatusTypeDef HMC5883L_Read(uint8_t reg, uint8_t *data, uint8_t length)
 {
 	return I2C_Read(HMC5883L_ADDRESS << 1, reg, data, length);
+}
+static HAL_StatusTypeDef QMC5883L_Write(uint8_t reg, uint8_t data)
+{
+    return HAL_I2C_Mem_Write(I2C_BUS, QMC5883L_ADDRESS << 1, reg, I2C_MEMADD_SIZE_8BIT, &data, 1, 100);
+}
+
+static HAL_StatusTypeDef QMC5883L_Read(uint8_t reg, uint8_t *data, uint8_t length)
+{
+    return HAL_I2C_Mem_Read(I2C_BUS, QMC5883L_ADDRESS << 1, reg, I2C_MEMADD_SIZE_8BIT, data, length, 100);
 }
 
 static void MPU6050_SetSensitivity(void)
@@ -121,9 +133,9 @@ void MPU6050_Init(void)
 	MPU6050_Read(MPU6050_WHO_AM_I, &who, 1);
 
 	if (who == 0x68)
-		HAL_UART_Transmit(&huart2, (uint8_t *)"Success\r\n", sizeof("Success\r\n"), 100);
+		HAL_UART_Transmit(&huart2, (uint8_t *)"MPU6050 Success\r\n", sizeof("MPU6050 Success\r\n") - 1, 100);
 	else
-		HAL_UART_Transmit(&huart2, (uint8_t *)"Failed\r\n", sizeof("Failed\r\n"), 100);
+		HAL_UART_Transmit(&huart2, (uint8_t *)"MPU6050 Failed\r\n", sizeof("MPU6050 Failed\r\n") - 1, 100);
 
 	MPU6050_Write(MPU6050_CONFIG, cfg.dlpf_cfg);
 	MPU6050_Write(MPU6050_SMPLRT_DIV, cfg.smplrt_div);
@@ -161,6 +173,32 @@ void HMC5883L_Init(void)
     // Mode Register: Continuous-Measurement 모드 설정
     HMC5883L_Write(HMC5883L_MODE, HMC5883L_MODE_CONTINUOUS);
     HAL_Delay(10);
+}
+
+void QMC5883L_Init(void)
+{
+    uint8_t id = 0;
+
+    // Chip ID 레지스터 확인 (0x0D, 기본 0xFF)
+    QMC5883L_Read(QMC5883L_CHIP_ID, &id, 1);
+    HAL_Delay(10);
+
+    if (id == 0xFF) {
+        HAL_UART_Transmit(&huart2, (uint8_t *)"QMC5883L ID OK\r\n", sizeof("QMC5883L ID OK\r\n") - 1, 100);
+    } else {
+        HAL_UART_Transmit(&huart2, (uint8_t *)"QMC5883L ID Fail\r\n", sizeof("QMC5883L ID Fail\r\n") - 1, 100);
+        return;
+    }
+
+    // Set/Reset Period 설정
+    QMC5883L_Write(QMC5883L_SET_RESET_PERIOD, 0x01);
+    HAL_Delay(10);
+
+    // Control 1 설정: 512OSR, 8G, 200Hz, Continuous Mode
+    QMC5883L_Write(QMC5883L_CONTROL_1, 0x1D);
+    HAL_Delay(10);
+
+    // Control 2는 사용하지 않음 (필요시 Soft Reset, Roll Pointer, INT_ENB 가능)
 }
 
 // 오차 관련 함수
@@ -245,6 +283,21 @@ void HMC5883L_ReadMag(float mag[3])
 	mag[2] = (float)(int16_t)((buff[2] << 8) | buff[3]) / HMC5883L_LSB_1_3G;
 }
 
+void QMC5883L_ReadMag(float mag[3])
+{
+    uint8_t buff[6] = {0};
+    QMC5883L_Read(QMC5883L_DATA_X_LSB, buff, 6);
+
+    int16_t raw_x = (int16_t)((buff[1] << 8) | buff[0]);
+    int16_t raw_y = (int16_t)((buff[3] << 8) | buff[2]);
+    int16_t raw_z = (int16_t)((buff[5] << 8) | buff[4]);
+
+    // Sensitivity: ±8G 모드 → 3000 LSB/G
+    mag[0] = (float)raw_x / 3000.0f;
+    mag[1] = (float)raw_y / 3000.0f;
+    mag[2] = (float)raw_z / 3000.0f;
+}
+
 void MPU6050_ReadAll_DMA_Start(void)
 {
     HAL_I2C_Mem_Read_DMA(&hi2c1, MPU6050_ADDRESS << 1, MPU6050_ACCEL_XOUT_H, I2C_MEMADD_SIZE_8BIT, mpu6050_buff, 14);
@@ -252,6 +305,10 @@ void MPU6050_ReadAll_DMA_Start(void)
 void HMC5883L_ReadAll_DMA_Start(void)
 {
     HAL_I2C_Mem_Read_DMA(&hi2c1, HMC5883L_ADDRESS << 1, HMC5883L_DATA_X_MSB, I2C_MEMADD_SIZE_8BIT, hmc5883l_buff, 6);
+}
+void QMC5883L_ReadAll_DMA_Start(void)
+{
+    HAL_I2C_Mem_Read_DMA(I2C_BUS, QMC5883L_ADDRESS << 1, QMC5883L_DATA_X_LSB, I2C_MEMADD_SIZE_8BIT, qmc5883l_buff, 6);
 }
 
 void MPU6050_Parse_DMA(float accel[3], float gyro[3])
@@ -272,3 +329,13 @@ void HMC5883L_Parse_DMA(float mag[3])
 	mag[2] = (float)(int16_t)((hmc5883l_buff[4] << 8) | hmc5883l_buff[5]) / HMC5883L_LSB_1_3G;
 }
 
+void QMC5883L_Parse_DMA(float mag[3])
+{
+    int16_t raw_x = (int16_t)((qmc5883l_buff[1] << 8) | qmc5883l_buff[0]);
+    int16_t raw_y = (int16_t)((qmc5883l_buff[3] << 8) | qmc5883l_buff[2]);
+    int16_t raw_z = (int16_t)((qmc5883l_buff[5] << 8) | qmc5883l_buff[4]);
+
+    mag[0] = (float)raw_x / 3000.0f;  // ±8G 모드 기준
+    mag[1] = (float)raw_y / 3000.0f;
+    mag[2] = (float)raw_z / 3000.0f;
+}
