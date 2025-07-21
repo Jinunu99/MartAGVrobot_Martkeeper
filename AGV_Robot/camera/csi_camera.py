@@ -10,12 +10,13 @@ class CSICamera:
         self.height = height
         self.flip = flip
         
+
         self.picam2 = Picamera2()
         self.picam2.preview_configuration.main.size = (width, height)
         self.picam2.preview_configuration.main.format = fmt
         self.picam2.configure("preview")
         self.picam2.start()
-        time.sleep(1)
+        time.sleep(0.1)
 
         print("Picamera2 Init Complete")
 
@@ -24,6 +25,7 @@ class CSICamera:
     # 최대 해상도: 3280x2464 (약 8MP)
     # 센서 기본 비율: 4:3 (3280:2464 ≈ 1.333)
     def run(self, crop=None):
+
         while True:
             frame = self.picam2.capture_array()
             
