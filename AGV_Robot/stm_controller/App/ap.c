@@ -12,21 +12,13 @@
 
 #include "motor.h"
 #include "serial.h"
-#include "imu.h"
 #include "obstacle.h"
-#include "vl53l0x.h"
 
 // Serial 변수
 extern volatile uint8_t rxFlag;                // RX 완료 플래그
 extern volatile uint8_t txFlag;                // TX 완료 플래그
 #define RX_SIZE				64
 uint8_t cmd[RX_SIZE];
-
-// IMU Data 변수
-char msg[128];
-float accel[3], gyro[3], mag[3], temp;
-extern volatile uint8_t i2c1Flag;
-volatile uint8_t cur_imu = 0;
 
 // Motor 관련 변수
 #define DEFAULT_SPEED		390
@@ -38,14 +30,6 @@ uint16_t distance;
 void apInit(void)
 {
 	SERIAL_Init();
-
-	MPU6050_Init();
-//	HMC5883L_Init();
-//	QMC5883L_Init();
-	MPU6050_ReadAll_DMA_Start();
-//	HMC5883L_ReadAll_DMA_Start();
-//	QMC5883L_ReadAll_DMA_Start();
-
 	VL53L0X_Init();
 
 	MOTOR_Init();
@@ -58,7 +42,6 @@ void apMain(void)
 	while (1)
 	{
 		Serial_Task();
-		ImuSensor_Task();
 		Motor_Task();
 		VL53L0X_Task();
 	}
@@ -101,36 +84,6 @@ void VL53L0X_Task(void)
 	{
 		state = VL53L0X_SingleRead();
 	}
-}
-
-// === IMU 데이터 처리 함수 ===
-void ImuSensor_Task(void)
-{
-    if (cur_imu == 0)
-    {
-        cur_imu = 1;
-        i2c1Flag = 1;
-        MPU6050_ReadAll_DMA_Start();    // MPU6050 다음 프레임 시작
-        MPU6050_Parse_DMA(accel, gyro);
-        snprintf(msg, sizeof(msg),
-					"ACC: X=%.2f Y=%.2f Z=%.2f | GYRO: X=%.2f Y=%.2f Z=%.2f\r\n",
-					accel[0], accel[1], accel[2],
-					gyro[0], gyro[1], gyro[2]);
-//        HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 100);
-    }
-    else
-    {
-        cur_imu = 0;
-        i2c1Flag = 1;
-        HMC5883L_ReadAll_DMA_Start();   // HMC5883L 다음 프레임 시작
-        HMC5883L_Parse_DMA(mag);
-//        QMC5883L_ReadAll_DMA_Start();
-//        QMC5883L_Parse_DMA(mag);
-        snprintf(msg, sizeof(msg),
-					"MAG: X=%.2f Y=%.2f Z=%.2f\r\n",
-					mag[0], mag[1], mag[2]);
-//        HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 100);
-    }
 }
 
 // === 모터 제어 명령 처리 함수 ===
