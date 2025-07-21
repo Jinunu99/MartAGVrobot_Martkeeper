@@ -19,45 +19,42 @@ class LineTracer:
         self.upper_hsv = np.array([179, 255, 80])
 
         # ROI 가중치 (하단이 더 중요, 상단은 덜 중요)
-        self.weights = [0.3, 0.3, 0.22, 0.17, 0.11]
+        self.weights = [0.3, 0.26, 0.22, 0.18, 0.14]
+        # self.weights = [0.14, 0.18, 0.22, 0.26, 0.3]
 
     def get_offset(self, frame):
         annotated = frame.copy()
-        frame_height, frame_width = frame.shape[:2]
-        mid_x = frame_width // 2
+        h, w = frame.shape[:2]
+        mid_x = w // 2
 
         offsets = []
         weighted_sum = 0
         total_weight = 0
+        binary = None
 
         hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
 
         for i, (y1, y2, x1, x2) in enumerate(self.roi_boxes):
             roi_hsv = hsv[y1:y2, x1:x2]
             binary = cv2.inRange(roi_hsv, self.lower_hsv, self.upper_hsv)
-            
-            contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+            contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             if not contours:
                 continue
 
-            largest_contour = max(contours, key=cv2.contourArea)
-            area = cv2.contourArea(largest_contour)
-
-            if area < 300:
+            largest = max(contours, key=cv2.contourArea)
+            if cv2.contourArea(largest) < 300:
                 continue
 
-            x, y, w, h = cv2.boundingRect(largest_contour)
-            line_cx = x1 + x + w // 2
+            x, y, w_box, h_box = cv2.boundingRect(largest)
+            line_cx = x1 + x + w_box // 2
             offset = line_cx - mid_x
 
-            # 누적
             weight = self.weights[i]
             weighted_sum += offset * weight
             total_weight += weight
 
-            # 시각화
-            cv2.rectangle(annotated, (x1 + x, y1 + y), (x1 + x + w, y1 + y + h), (0, 255, 0), 2)
+            cv2.rectangle(annotated, (x1 + x, y1 + y), (x1 + x + w_box, y1 + y + h_box), (0, 255, 0), 2)
             cv2.circle(annotated, (line_cx, (y1 + y2) // 2), 4, (255, 255, 255), -1)
 
         if total_weight == 0:
@@ -65,3 +62,33 @@ class LineTracer:
 
         weighted_offset = int(weighted_sum / total_weight)
         return weighted_offset, annotated, binary, True
+    
+    def get_direction(self, frame):
+        offset, annotated, binary, found = self.get_offset(frame)
+
+        if not found:
+            direction = "S"
+        elif offset < -70:
+            direction = "L"
+        elif offset < -50:
+            direction = "LF"
+        elif offset > 70:
+            direction = "R"
+        elif offset > 50:
+            direction = "RF"
+        else:
+            direction = "F"
+
+        return direction, offset, annotated, binary, found
+
+    def draw_debug(self, annotated, binary):
+        if binary is not None and binary.size > 0:
+            binary_color = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
+            if annotated.shape != binary_color.shape:
+                binary_color = cv2.resize(binary_color, (annotated.shape[1], annotated.shape[0]))
+            combined = np.hstack((annotated, binary_color))
+            return combined
+        else:
+            return annotated
+    
+    
