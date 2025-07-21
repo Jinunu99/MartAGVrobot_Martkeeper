@@ -1,6 +1,6 @@
 import queue
 
-csi_frame = queue.Queue(maxsize=5)
+csi_frame = queue.Queue(maxsize=10)
 usb_frame = queue.Queue(maxsize=5)
 
 rx_queue = queue.Queue(maxsize=5)
