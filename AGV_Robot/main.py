@@ -8,7 +8,6 @@ from utils.buffer import tx_queue, rx_queue
 from communication import UARTHandler
 from line_tracer import LineTracer
 from qr import QRReader
-from communication import AgvToServer
 
 def start_uart():
     uart = UARTHandler(port='/dev/serial0', baudrate=19200)
@@ -36,8 +35,7 @@ if __name__ == "__main__":
     # 3) 라인트레이서, QR 리더 초기화
     tracer = LineTracer()
     qr_reader = QRReader()
-    agv_sender = AgvToServer("userAGV1")   #  AGV 이름 지정
-
+    
     try:
         while True:
             frame = picam2.capture_array()
@@ -46,19 +44,13 @@ if __name__ == "__main__":
             direction, offset, annotated, binary, found = tracer.get_direction(frame)
 
             # QR 코드 인식
-            qr_results = qr_reader.scan(frame)
-
-            # 좌표가 포함된 QR이 있다면 서버 전송
-            for qr in qr_results:
-                if qr["x"] is not None and qr["y"] is not None:
-                    agv_sender.set_position(qr["x"], qr["y"])
-                    agv_sender.transmit_to_server()
+            qr_string = qr_reader.scan(frame)
 
             # UART 송신
             tx_queue.put(direction + "\n")
 
             # line_tracer 값 출력
-            print(f"[MAIN] Direction={direction}, Offset={offset}, Found={found}, QR={qr_results}")
+            print(f"[MAIN] Direction={direction}, Offset={offset}, Found={found}, QR={qr_string}")
 
             # 디버깅 이미지 표시
             combined = tracer.draw_debug(annotated, binary)
