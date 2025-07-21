@@ -10,9 +10,7 @@
 #include "i2c.h"
 
 #include "serial.h"
-#include "imu.h"
-
-extern volatile uint8_t i2c1Flag;
+#include "obstacle.h"
 
 void hwInit(void)
 {
@@ -40,13 +38,5 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
     if (huart->Instance == USART1)
     {
         SERIAL_Flag();
-    }
-}
-
-void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c)
-{
-    if (hi2c == &hi2c1)
-    {
-    	i2c1Flag = 1;
     }
 }
