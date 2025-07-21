@@ -11,6 +11,7 @@
 
 #include "serial.h"
 #include "imu.h"
+#include "obstacle.h"
 
 extern volatile uint8_t i2c1Flag;
 
