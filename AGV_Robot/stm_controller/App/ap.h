@@ -14,6 +14,7 @@ void apInit(void);
 void apMain(void);
 
 void Serial_Task(void);
+void VL53L0X_Task(void);
 void ImuSensor_Task(void);
 void Motor_Task(void);
 

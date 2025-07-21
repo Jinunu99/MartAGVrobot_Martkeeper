@@ -7,11 +7,14 @@
 
 #include "ap.h"
 #include "tim.h"
+#include "i2c.h"
 #include "usart.h"
 
 #include "motor.h"
 #include "serial.h"
 #include "imu.h"
+#include "obstacle.h"
+#include "vl53l0x.h"
 
 // Serial 변수
 extern volatile uint8_t rxFlag;                // RX 완료 플래그
@@ -30,16 +33,20 @@ volatile uint8_t cur_imu = 0;
 #define HIGH_SPEED			850
 #define LOW_SPEED			390
 
+uint16_t distance;
+
 void apInit(void)
 {
 	SERIAL_Init();
 
-//	MPU6050_Init();
-	HMC5883L_Init();
+	MPU6050_Init();
+//	HMC5883L_Init();
 //	QMC5883L_Init();
-//	MPU6050_ReadAll_DMA_Start();
-	HMC5883L_ReadAll_DMA_Start();
+	MPU6050_ReadAll_DMA_Start();
+//	HMC5883L_ReadAll_DMA_Start();
 //	QMC5883L_ReadAll_DMA_Start();
+
+	VL53L0X_Init();
 
 	MOTOR_Init();
 
@@ -53,6 +60,7 @@ void apMain(void)
 		Serial_Task();
 		ImuSensor_Task();
 		Motor_Task();
+		VL53L0X_Task();
 	}
 }
 
@@ -72,6 +80,27 @@ void Serial_Task(void)
     if (strlen((char*)cmd) > 0) {
 //        HAL_UART_Transmit(&huart2, cmd, strlen((char*)cmd), 100);
     }
+}
+
+// === 적외선 거리 센서 데이터 처리 함수 ===
+uint32_t vl53l0x_last_tick = 0;
+const uint32_t vl53l0x_period = 1000;  // 1초 주기 (1000ms)
+
+void VL53L0X_Task(void)
+{
+	static VL53L0X_State_t state = VL53L0X_STATE_IDLE;
+	if (state == VL53L0X_STATE_IDLE)
+	{
+		if ((HAL_GetTick() - vl53l0x_last_tick) >= vl53l0x_period)
+		{
+			vl53l0x_last_tick = HAL_GetTick();
+			state = VL53L0X_SingleRead();
+		}
+	}
+	else
+	{
+		state = VL53L0X_SingleRead();
+	}
 }
 
 // === IMU 데이터 처리 함수 ===
@@ -100,7 +129,7 @@ void ImuSensor_Task(void)
         snprintf(msg, sizeof(msg),
 					"MAG: X=%.2f Y=%.2f Z=%.2f\r\n",
 					mag[0], mag[1], mag[2]);
-        HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 100);
+//        HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 100);
     }
 }
 
