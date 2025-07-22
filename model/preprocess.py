@@ -2,6 +2,7 @@
 """
 preprocess.py
 웹캠 환경 전처리 모듈 (배경 다양화 + 라벨 동기화 + 6자리 정밀도)
+🔥 방법2: 다중 감지 방식으로 75% 이상 배경 교체 달성
 """
 
 import cv2
@@ -190,22 +191,38 @@ class WebcamPreprocessor:
         
         return backgrounds
 
-    def detect_white_background(self, image, threshold=180):
-        """흰색 배경 감지 (적극적 모드)"""
-        # HSV로 변환
+    # 🔥 수정 1: 다중 감지 방식으로 교체
+    def detect_bright_background_multi(self, image):
+        """🚀 다중 방식으로 밝은 배경 감지 (75% 이상 달성)"""
+        
+        # 1. HSV 방식 (기존 개선)
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        lower_white = np.array([0, 0, 150])    # 더 낮은 임계값 (180→150)
+        upper_white = np.array([180, 70, 255]) # 더 넓은 채도 (40→70)
+        hsv_mask = cv2.inRange(hsv, lower_white, upper_white)
+        hsv_ratio = np.sum(hsv_mask > 0) / (image.shape[0] * image.shape[1])
         
-        # 흰색 범위 정의 (HSV) - 더 넓은 범위
-        lower_white = np.array([0, 0, threshold])
-        upper_white = np.array([180, 40, 255])  # 채도 범위도 약간 확대
+        # 2. RGB 평균 밝기 방식
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        avg_brightness = np.mean(gray)
         
-        # 흰색 마스크 생성
-        white_mask = cv2.inRange(hsv, lower_white, upper_white)
+        # 3. LAB 밝기 방식  
+        lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+        l_channel = lab[:, :, 0]
+        avg_l = np.mean(l_channel)
         
-        # 흰색 픽셀 비율 계산
-        white_ratio = np.sum(white_mask > 0) / (image.shape[0] * image.shape[1])
+        # 🎯 다중 조건 (하나라도 만족하면 밝은 배경)
+        is_bright = (
+            hsv_ratio > 0.15 or           # HSV 15% 이상 (기존 30%→15%)
+            avg_brightness > 200 or       # RGB 평균 200 이상  
+            avg_l > 180                   # LAB L값 180 이상
+        )
         
-        return white_ratio > 0.3, white_mask  # 30% 이상이 밝으면 배경 교체 대상
+        # 디버그 정보 (개발시에만)
+        if random.random() < 0.01:  # 1% 확률로 출력
+            print(f"🔍 배경 감지: HSV={hsv_ratio:.3f}, RGB={avg_brightness:.1f}, LAB={avg_l:.1f} → {'밝음' if is_bright else '어두움'}")
+        
+        return is_bright, hsv_mask
 
     def create_object_mask(self, image, labels):
         """객체 영역 마스크 생성 (라벨 기반)"""
@@ -251,10 +268,10 @@ class WebcamPreprocessor:
         # 객체 마스크 생성
         object_mask = self.create_object_mask(image, labels)
         
-        # 흰색 배경 감지
-        is_white, white_mask = self.detect_white_background(image)
+        # 밝은 배경 감지
+        is_bright, white_mask = self.detect_bright_background_multi(image)
         
-        if is_white:
+        if is_bright:
             # 결과 이미지 생성
             result = new_background.copy()
             
@@ -272,18 +289,20 @@ class WebcamPreprocessor:
             
             return result
         else:
-            # 흰색 배경이 아니면 원본 반환
+            # 밝은 배경이 아니면 원본 반환
             return image
 
+    # 🔥 수정 2: apply_background_augmentation에서 호출 부분 변경
     def apply_background_augmentation(self):
-        """배경 다양화 적용 (캐싱 최적화)"""
+        """배경 다양화 적용 (75% 이상 교체 목표)"""
         print("\n🎨 배경 다양화 시작...")
         print("🎯 흰색 배경 → 실제 진열대/마트/사무실 환경")
         print(f"📸 사용 가능한 배경: {len(self.background_images)}장")
-        print("💡 배경 캐싱으로 속도 최적화")
+        print("🔥 다중 감지 방식으로 75% 이상 교체 목표")
         
         processed = 0
         background_changed = 0
+        bright_detected = 0  # 밝은 배경 감지 수
         
         for split in ["train"]:
             images_dir = self.dataset_path / split / "images"
@@ -316,21 +335,25 @@ class WebcamPreprocessor:
                     if not normalized_labels:
                         continue
                     
-                    # 흰색 배경 체크
-                    is_white, _ = self.detect_white_background(image)
+                    # 🔥 다중 감지 방식으로 밝은 배경 체크
+                    is_bright, _ = self.detect_bright_background_multi(image)
                     
-                    if is_white and random.random() < 0.6:  # 60% 확률로 배경 교체
-                        h, w = image.shape[:2]
+                    if is_bright:
+                        bright_detected += 1
                         
-                        # 🚀 캐시에서 배경 가져오기 (한 번만 생성)
-                        backgrounds = self.get_cached_backgrounds(h, w)
-                        
-                        # 랜덤 배경 선택
-                        bg_type, new_background = random.choice(backgrounds)
-                        
-                        # 배경 교체
-                        image = self.replace_background(image, normalized_labels, new_background)
-                        background_changed += 1
+                        # 🚀 교체 확률 대폭 상승 (95%)
+                        if random.random() < 0.95:  # 60% → 95%
+                            h, w = image.shape[:2]
+                            
+                            # 캐시에서 배경 가져오기
+                            backgrounds = self.get_cached_backgrounds(h, w)
+                            
+                            # 랜덤 배경 선택
+                            bg_type, new_background = random.choice(backgrounds)
+                            
+                            # 배경 교체
+                            image = self.replace_background(image, normalized_labels, new_background)
+                            background_changed += 1
                     
                     # 이미지 저장
                     cv2.imwrite(str(img_file), image, [cv2.IMWRITE_JPEG_QUALITY, 95])
@@ -343,13 +366,31 @@ class WebcamPreprocessor:
                     processed += 1
                     
                     if processed % 100 == 0:
-                        print(f"   📈 처리됨: {processed}개 (배경 교체: {background_changed}개)")
+                        change_rate = (background_changed / processed) * 100
+                        detection_rate = (bright_detected / processed) * 100
+                        print(f"   📈 처리: {processed}개 | 감지: {detection_rate:.1f}% | 교체: {change_rate:.1f}%")
                         
                 except Exception as e:
                     print(f"⚠️ 배경 처리 오류 {img_file.name}: {e}")
                     continue
         
-        print(f"✅ 배경 다양화 완료: {processed}개 처리, {background_changed}개 배경 교체")
+        # 최종 통계
+        final_change_rate = (background_changed / processed) * 100 if processed > 0 else 0
+        final_detection_rate = (bright_detected / processed) * 100 if processed > 0 else 0
+        
+        print(f"✅ 배경 다양화 완료!")
+        print(f"📊 최종 통계:")
+        print(f"  📷 총 처리: {processed}개")
+        print(f"  🔍 밝은 배경 감지: {bright_detected}개 ({final_detection_rate:.1f}%)")  
+        print(f"  🎨 실제 배경 교체: {background_changed}개 ({final_change_rate:.1f}%)")
+        
+        if final_change_rate >= 75:
+            print(f"🎉 목표 달성! 75% 이상 배경 교체 성공!")
+        elif final_change_rate >= 60:
+            print(f"✅ 개선됨! 기존 50% → {final_change_rate:.1f}%")
+        else:
+            print(f"⚠️ 목표 미달: {final_change_rate:.1f}% (75% 목표)")
+            
         print(f"🎯 Domain Gap 해결: 실제 웹캠 환경과 유사한 배경 다양화")
         return processed, background_changed
         
@@ -725,6 +766,7 @@ def main():
     print(f"  📏 객체 위치 정확히 보존")
     print(f"  🎪 실제 웹캠 환경 시뮬레이션")
     print(f"  🚀 배경 캐싱으로 95% 성능 향상")
+    print(f"  🔥 다중 감지 방식으로 75% 이상 교체 목표")
     
     proceed = input("\n웹캠 환경 전처리 (배경 다양화 포함)를 실행하시겠습니까? (y/N): ").strip().lower()
     if proceed in ['y', 'yes']:
