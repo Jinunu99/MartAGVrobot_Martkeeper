@@ -31,7 +31,8 @@
 #include "i2c.h"
 #include "usart.h"
 
-#define I2C_BUS		&hi2c2
+#define I2C_BUS						&hi2c2
+#define OFFSET_CALI(distance)		distance - 30
 
 static VL53L0X_State_t vl53l0x_state = VL53L0X_STATE_IDLE;
 static uint32_t vl53l0x_start_time = 0;
@@ -91,7 +92,7 @@ VL53L0X_State_t VL53L0X_SingleRead(void)
             lsb = readReg(RESULT_RANGE_STATUS + 11);
             uint16_t dist = (msb << 8) | lsb;
 
-            snprintf(uart_buffer, sizeof(uart_buffer), "Distance = %d mm\r\n", dist);
+            snprintf(uart_buffer, sizeof(uart_buffer), "Distance = %d mm\r\n", OFFSET_CALI(dist));
             HAL_UART_Transmit(&huart2, (uint8_t *)uart_buffer, strlen(uart_buffer), 100);
 
             writeReg(SYSTEM_INTERRUPT_CLEAR, 0x01);
@@ -108,5 +109,5 @@ VL53L0X_State_t VL53L0X_SingleRead(void)
 
 uint16_t VL53L0X_GetDistance(void)
 {
-    return g_distance;
+    return OFFSET_CALI(g_distance);
 }
