@@ -1,23 +1,35 @@
+import os
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QGraphicsScene, QGraphicsRectItem, QGraphicsEllipseItem
 from PyQt5.QtWidgets import QGraphicsView, QLabel
 from PyQt5 import uic
 from PyQt5.QtGui import QBrush, QColor
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSlot, pyqtSignal
 
 import pymysql
 
 class ManagerGUI(QWidget):
+    # 시그널 변수 선언
+    agv_position_updated = pyqtSignal(str, int, int)
+    snack_updated = pyqtSignal(int, int)
+
     def __init__(self, db_manager):
         super().__init__()
-        uic.loadUi("manager_gui.ui", self)
 
+        # 시그널 슬롯 연결
+        self.agv_position_updated.connect(self.set_agv_position)
+        self.snack_updated.connect(self.set_snack_stock)
+
+
+        ui_path = os.path.join(os.path.dirname(__file__), "manager_gui.ui")
+        uic.loadUi(ui_path, self)
+        
         self.db_manager = db_manager # DB 객체
 
         # agv 위치 저장 변수
-        self.user_agv1_x, self.user_agv1_y = [0, 5]
-        self.user_agv2_x, self.user_agv2_y = [0, 5]
-        self.manager_agv_x, self.manager_agv_y = [0, 4]
+        self.user_agv1_x, self.user_agv1_y = [5, 0]
+        self.user_agv2_x, self.user_agv2_y = [6, 0]
+        self.manager_agv_x, self.manager_agv_y = [4, 0]
 
 
         self.scene = QGraphicsScene()
@@ -32,7 +44,7 @@ class ManagerGUI(QWidget):
         self.agv2 = self.draw_agv(0, 5, Qt.blue)
         self.agv_admin = self.draw_agv(0, 4, Qt.green)
 
-        self.snack_name = ["뽀또", "초코칩", "쵸코하임", "후레쉬베리", "고소미", "빅파이"] # 과자 재고 이름
+        self.snack_name = ["뽀또", "오사쯔", "콘초", "초쿄하임", "포카칩", "고소미"] # 과자 재고 이름
         self.snack_position = [[0, 1], [0, 3], [0, 5], [4, 1], [4, 3], [4, 5]] # 과자 재고 위치
         self.snack_num = [0, 0, 0, 0, 0, 0] # 과자 재고 갯수
 
@@ -41,9 +53,9 @@ class ManagerGUI(QWidget):
             label.setText(self.snack_name[i])
 
         # DB에 agv 위치 초기화 
-        self.set_agv_position("userAGV1", [self.user_agv1_x, self.user_agv1_y])
-        self.set_agv_position("userAGV2", [self.user_agv2_x, self.user_agv2_y])
-        self.set_agv_position("managerAGV", [self.manager_agv_x, self.manager_agv_y])
+        self.set_agv_position("userAGV1", self.user_agv1_x, self.user_agv1_y)
+        self.set_agv_position("userAGV2", self.user_agv2_x, self.user_agv2_y)
+        self.set_agv_position("managerAGV", self.manager_agv_x, self.manager_agv_y)
 
         # DB에 재고 갯수 초기화
         self.set_snack_db_init()
@@ -68,13 +80,14 @@ class ManagerGUI(QWidget):
     # 해당 함수를 호출할때 agv_name과 업데이트된 x 위치, y위치를 알려줘야함
     # agv_name : userAGV1, userAGV2, managerAGV
     # pos는 [x, y]
-    def set_agv_position(self, agv_name, agv_position):
+    @pyqtSlot(str, int, int)
+    def set_agv_position(self, agv_name, x, y):
         if agv_name == "userAGV1":
-            self.user_agv1_x, self.user_agv1_y = agv_position
+            self.user_agv1_x, self.user_agv1_y = [x, y]
         elif agv_name == "userAGV2":
-            self.user_agv2_x, self.user_agv2_y = agv_position
+            self.user_agv2_x, self.user_agv2_y = [x, y]
         elif agv_name == "managerAGV":
-            self.manager_agv_x, self.manager_agv_y = agv_position
+            self.manager_agv_x, self.manager_agv_y = [x, y]
 
         # 위치 업데이트
         self.update_agv_position(self.agv1, self.user_agv1_y, self.user_agv1_x)
@@ -87,7 +100,7 @@ class ManagerGUI(QWidget):
         self.lbl_agv3.setText(f"[{self.manager_agv_x}, {self.manager_agv_y}]") # 관리자 AGV
 
         # DB에 AGV 위치 업데이트
-        self.db_manager.update_agv_position(agv_name, agv_position[0], agv_position[1])
+        self.db_manager.update_agv_position(agv_name, x, y)
 
     # DB의 모든 재고를 초기화 하는 함수
     def set_snack_db_init(self):
@@ -97,6 +110,7 @@ class ManagerGUI(QWidget):
             self.db_manager.update_snack_stock(i, self.snack_num[i])
 
     # 재고 업데이트 함수 (재고를 검사하는 위치에서 해당 함수를 호출해줘야 함)
+    @pyqtSlot(int, int)
     def set_snack_stock(self, update_snack_num):
         # 스낵 재고를 검사하는 위치에 manager_agv가 있으면 재고를 파악해서 db에 재고 갯수를 업데이트 함
         
@@ -110,11 +124,10 @@ class ManagerGUI(QWidget):
 
                 # db에 재고 갯수 업데이트
                 self.db_manager.update_snack_stock(idx, update_snack_num)
-            
 
     def draw_map(self):
         # 격자맵 생성
-        for row in range(6):
+        for row in range(7):
             for col in range(7):
                 rect = QGraphicsRectItem(col * self.cell_size, row * self.cell_size,
                                          self.cell_size, self.cell_size)
@@ -125,7 +138,8 @@ class ManagerGUI(QWidget):
         # 벽 생성
         wall = [(1, 1), (1, 3), (1, 5),
                 (3, 1), (3, 3), (3, 5),
-                (5, 1), (5, 2), (5, 3), (5, 4), (5, 5)]
+                (5, 1), (5, 2), (5, 3), (5, 4), (5, 5),
+                (6, 1), (6, 2), (6, 3), (6, 4), (6, 5), (6, 6)]
         # 벽 생성
         for row, col in wall:
             block = QGraphicsRectItem(col * self.cell_size, row * self.cell_size,
@@ -133,9 +147,7 @@ class ManagerGUI(QWidget):
             block.setBrush(QBrush(Qt.black))
             self.scene.addItem(block)
 
-    # managerAGV에게 과자 재고 정보를 받는 부분
-    def set_snack_num(self):
-        pass
+    
 
     
 

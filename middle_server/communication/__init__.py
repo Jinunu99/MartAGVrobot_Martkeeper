@@ -1,0 +1,1 @@
+from .recv_from_agv import RecvFromAgv
