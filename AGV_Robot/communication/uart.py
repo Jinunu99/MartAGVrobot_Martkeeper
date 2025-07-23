@@ -47,7 +47,7 @@ if __name__=="__main__":
                 data = rx_queue.get()
                 print(f"[UART] Received from STM32: {data}")
 
-            time.sleep(0.1)  # CPU 과점유 방지용
+            time.sleep(0.01)  # CPU 과점유 방지용
     
     except KeyboardInterrupt:
         print("User KeyboardInterrupt")

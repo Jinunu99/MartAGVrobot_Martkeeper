@@ -1,15 +1,15 @@
 <!-- # snack_dataset url 
-# https://universe.roboflow.com/korea-nazarene-university/-d9kpq/dataset/3
+https://universe.roboflow.com/korea-nazarene-university/-d9kpq/dataset/3
 
-# /home/paper/workspace/MartAGVrobot_Martkeeper/agvenv/bin/python3.9 -m pip install --upgrade pip
+/home/paper/workspace/MartAGVrobot_Martkeeper/agvenv/bin/python3.9 -m pip install --upgrade pip
 
-# requirements 설치 명령어
-# pip install -r requirements.txt
+requirements 설치 명령어
+pip install -r requirements.txt
 
-# 파이썬 3.9로 가상환경 생성
-# /usr/local/bin/python3.9 -m venv agvenv
+파이썬 3.9로 가상환경 생성
+/usr/local/bin/python3.9 -m venv agvenv
 
-# liblzma-dev 설치
+liblzma-dev 설치
 <!-- sudo apt update -->
 <!-- sudo apt install liblzma-dev -->
 
@@ -22,12 +22,13 @@ sudo make altinstall -->
 
 
 
-<!-- # bz2 설치
+<!-- 
+# bz2 설치
 sudo apt update
 sudo apt install libbz2-dev
 
-# cd ~/Python-3.9.2 이동
-# 빌드 --> 
+cd ~/Python-3.9.2 이동
+빌드 --> 
 
 <!-- make clean
 ./configure --enable-optimizations
@@ -44,11 +45,11 @@ python -c "import bz2; print('✅ 가상환경에서 bz2 정상 작동')" -->
 
 
 <!-- # pip upgade 
-# python -m pip install --upgrade pip
+python -m pip install --upgrade pip
 
-# MariDB 실행 / 허용
-# sudo systemctl start mariadb.service
-# sudo systemctl enable mariadb.service -->
+MariDB 실행 / 허용
+sudo systemctl start mariadb.service
+sudo systemctl enable mariadb.service -->
 
 
 # Tree

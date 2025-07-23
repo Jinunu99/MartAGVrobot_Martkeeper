@@ -7,32 +7,27 @@
 
 #include "ap.h"
 #include "tim.h"
+#include "i2c.h"
 #include "usart.h"
 
 #include "motor.h"
 #include "serial.h"
-#include "imu.h"
+#include "obstacle.h"
 
 // Serial 변수
 extern volatile uint8_t rxFlag;                // RX 완료 플래그
 extern volatile uint8_t txFlag;                // TX 완료 플래그
 #define RX_SIZE				64
-uint8_t rxData[RX_SIZE];
+uint8_t cmd[RX_SIZE];
 
-// IMU Data 변수
-char msg[128];
-float accel[3], gyro[3], mag[3], temp;
-extern volatile uint8_t i2c1Flag;
-volatile uint8_t cur_imu = 0;
+uint16_t distance;
 
 void apInit(void)
 {
 	SERIAL_Init();
+	VL53L0X_Init();
 
-	MPU6050_Init();
-	MPU6050_ReadAll_DMA_Start();
-
-	MOTOR_Init();
+	Motor_Init();
 
 	HAL_TIM_Base_Start_IT(&htim11);
 }
@@ -42,8 +37,8 @@ void apMain(void)
 	while (1)
 	{
 		Serial_Task();
-		ImuSensor_Task();
 		Motor_Task();
+		VL53L0X_Task();
 	}
 }
 
@@ -57,93 +52,127 @@ void Serial_Task(void)
     }
 
     // 수신 데이터 받기
-    SERIAL_GetData(rxData);
+    SERIAL_GetData(cmd);
 
     // 수신 데이터를 USART2로 전송 (디버깅용)
-    if (strlen((char*)rxData) > 0) {
-        HAL_UART_Transmit(&huart2, rxData, strlen((char*)rxData), 100);
+    if (strlen((char*)cmd) > 0) {
+//        HAL_UART_Transmit(&huart2, cmd, strlen((char*)cmd), 100);
     }
 }
 
-// === IMU 데이터 처리 함수 ===
-void ImuSensor_Task(void)
+// === 적외선 거리 센서 데이터 처리 함수 ===
+uint32_t vl53l0x_last_tick = 0;
+const uint32_t vl53l0x_period = 1000;  // 1초 주기 (1000ms)
+
+void VL53L0X_Task(void)
 {
-    if (cur_imu == 0)
-    {
-        cur_imu = 1;
-        i2c1Flag = 1;
-        MPU6050_ReadAll_DMA_Start();    // MPU6050 다음 프레임 시작
-        MPU6050_Parse_DMA(accel, gyro);
-        snprintf(msg, sizeof(msg),
-					"ACC: X=%.2f Y=%.2f Z=%.2f | GYRO: X=%.2f Y=%.2f Z=%.2f\r\n",
-					accel[0], accel[1], accel[2],
-					gyro[0], gyro[1], gyro[2]);
-        HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 100);
-    }
-    else
-    {
-        cur_imu = 0;
-        i2c1Flag = 1;
-        HMC5883L_ReadAll_DMA_Start();   // HMC5883L 다음 프레임 시작
-        HMC5883L_Parse_DMA(mag);
-        snprintf(msg, sizeof(msg),
-					"MAG: X=%.2f Y=%.2f Z=%.2f\r\n",
-					mag[0], mag[1], mag[2]);
-        HAL_UART_Transmit(&huart2, (uint8_t *)msg, strlen(msg), 100);
-    }
+	static VL53L0X_State_t state = VL53L0X_STATE_IDLE;
+	if (state == VL53L0X_STATE_IDLE)
+	{
+		if ((HAL_GetTick() - vl53l0x_last_tick) >= vl53l0x_period)
+		{
+			vl53l0x_last_tick = HAL_GetTick();
+			state = VL53L0X_SingleRead();
+		}
+	}
+	else
+	{
+		state = VL53L0X_SingleRead();
+	}
 }
 
 // === 모터 제어 명령 처리 함수 ===
 void Motor_Task(void)
 {
-	// 수신된 데이터가 있는지 확인
-	if (strlen((char*)rxData) > 0)
+	static uint32_t last = 0;
+
+	// Pi로부터 새 명령이 도착했다면
+	if (rxFlag)
 	{
-		// 명령어 파싱 (첫 번째 문자로 방향 결정)
-		switch (rxData[0])
+		rxFlag = 0;
+		SERIAL_GetData((uint8_t*)cmd);
+		size_t len = strcspn((char*)cmd, "\r\n");
+		cmd[len] = '\0';
+
+
+		if (HAL_GetTick() - last > 100)  // 100ms 출력 제한
 		{
-			case 'w': // 전진
-				MECANUM_Move(MECANUM_FORWARD, 500);
-				SERIAL_PutData((uint8_t*)"Forward\r\n");
-				break;
-
-			case 's': // 후진
-				MECANUM_Move(MECANUM_BACKWARD, 500);
-				SERIAL_PutData((uint8_t*)"Backward\r\n");
-				break;
-
-			case 'a': // 좌측 이동
-				MECANUM_Move(MECANUM_LEFT, 500);
-				SERIAL_PutData((uint8_t*)"Left\r\n");
-				break;
-
-			case 'd': // 우측 이동
-				MECANUM_Move(MECANUM_RIGHT, 500);
-				SERIAL_PutData((uint8_t*)"Right\r\n");
-				break;
-
-			case 'q': // 좌회전
-				MECANUM_Move(MECANUM_ROTATE_LEFT, 500);
-				SERIAL_PutData((uint8_t*)"Rotate Left\r\n");
-				break;
-
-			case 'e': // 우회전
-				MECANUM_Move(MECANUM_ROTATE_RIGHT, 500);
-				SERIAL_PutData((uint8_t*)"Rotate Right\r\n");
-				break;
-
-			case 'x': // 정지
-				MECANUM_Stop();
-				SERIAL_PutData((uint8_t*)"Stop\r\n");
-				break;
-
-			default:
-				MECANUM_Stop();
-				SERIAL_PutData((uint8_t*)"Unknown command\r\n");
-				break;
+			HAL_UART_Transmit(&huart2, (uint8_t*)cmd, strlen((char*)cmd), 10);
+			last = HAL_GetTick();
 		}
 
-		// 수신 버퍼 클리어
-		memset(rxData, 0, RX_SIZE);
+		// 고급 명령어 처리
+		if (strcmp((char*)cmd, "F") == 0)        Set_Direction('F');
+		else if (strcmp((char*)cmd, "B") == 0)   Set_Direction('B');
+		else if (strcmp((char*)cmd, "L") == 0)   Set_Direction('L');
+		else if (strcmp((char*)cmd, "R") == 0)   Set_Direction('R');
+//    	    else if (strcmp((char*)cmd, "LF") == 0)  Set_Direction('G');  // 부드러운 좌
+//    	    else if (strcmp((char*)cmd, "RF") == 0)  Set_Direction('H');  // 부드러운 우
+		else if (strcmp((char*)cmd, "S") == 0)   Set_Direction('S');
+
+		// 복합 명령 처리
+		else if (strcmp((char*)cmd, "L90") == 0)
+		{
+			Set_Direction('F');
+			Set_Speed(30);
+			HAL_Delay(1800);
+
+			Set_Direction('L');
+			Set_Speed(50);
+			HAL_Delay(1450);  // 필요시 조정
+		}
+		else if (strcmp((char*)cmd, "R90") == 0)
+		{
+			Set_Direction('F');
+			Set_Speed(30);
+			HAL_Delay(1800);
+
+			Set_Direction('R');
+			Set_Speed(50);
+			HAL_Delay(1450);
+		}
+		else if (strcmp((char*)cmd, "R180") == 0)
+		{
+			Set_Direction('S');
+			HAL_Delay(100);
+			Set_Direction('R');
+			Set_Speed(50);
+			HAL_Delay(2900);  // 두 배 회전
+			Set_Direction('S');
+		}
+		else if (strcmp((char*)cmd, "SL") == 0)
+		{
+			// Step 1: 왼쪽 이동
+			Set_Direction('Y');     // 좌측 평행 이동
+			Set_Speed(40);          // 적절한 속도 (조정 가능)
+			HAL_Delay(1000);        // 약 1초 이동
+
+			// Step 2: 대기
+			Set_Direction('S');     // 정지
+			HAL_Delay(2000);        // 2초 대기
+
+			// Step 3: 오른쪽 복귀
+			Set_Direction('X');     // 우측 평행 이동
+			Set_Speed(40);          // 같은 속도
+			HAL_Delay(1000);        // 같은 거리 복귀
+
+			// Step 4: 정지 후 라인 복귀 대기
+			Set_Direction('S');
+		}
+		else if (strcmp((char*)cmd, "SR") == 0)
+		{
+			Set_Direction('X');
+			Set_Speed(40);
+			HAL_Delay(1000);
+
+			Set_Direction('S');
+			HAL_Delay(2000);
+
+			Set_Direction('Y');
+			Set_Speed(40);
+			HAL_Delay(1000);
+
+			Set_Direction('S');
+		}
 	}
 }

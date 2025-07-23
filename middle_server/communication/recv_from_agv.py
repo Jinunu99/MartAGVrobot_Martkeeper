@@ -14,6 +14,7 @@ class RecvFromAgv:
         self.SEND_TOPIC = "agv/{}/pos"  # 송신할 토픽 (x, y 위치정보 송신)
         self.RECV_TOPIC = "agv/+/qr_id" # 수신할 토픽 (QR 정보 수신)
 
+
         self.BROKER_IP = "localhost" # 브로커 IP는 실행하는 라즈베리파이 주소 입력
         self.BROKER_PORT = 1883
         self.client = mqtt.Client(client_id="ControlCenter")
@@ -25,8 +26,13 @@ class RecvFromAgv:
         self.agv_name = ["userAGV1", "userAGV2", "managerAGV"]   # userAGV1, userAGV2, managerAGV
         self.agv_qr = [None, None, None]       # AGV가 인식한 QR 정보
         self.agv_idx = None        
+
         self.position_x = [None, None, None]   # AGV x 위치
         self.position_y = [None, None, None]   # AGV y 위치
+
+        self.position_x = [0, 1, None]   # AGV x 위치
+        self.position_y = [0, 1, None]   # AGV y 위치
+
 
         self.snack_num = None
         
@@ -107,6 +113,11 @@ class RecvFromAgv:
                 "x": self.position_x[self.agv_idx],
                 "y": self.position_y[self.agv_idx]
             }
+
+            
+            '''그에 맞는 위치정보 송신'''
+            send_topic = self.SEND_TOPIC.format(target_agv_name)
+            send_data = {"x": self.position_x[self.agv_idx], "y": self.position_y[self.agv_idx]}
             self.client.publish(send_topic, json.dumps(send_data))
             print(f"송신 데이터: {send_data}")
 
