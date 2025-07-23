@@ -33,4 +33,4 @@ def calculate_distance(box1, box2):
     x2_center = (box2[0] + box2[2]) / 2
     y2_center = (box2[1] + box2[3]) / 2
     
-    return np.sqrt((x1_center - x2_center)**2 + (y1_center - y2_center)**2)
+    return np.sqrt((x1_center - x2_center)**2 + (y1_center - y2_center)**2) 
