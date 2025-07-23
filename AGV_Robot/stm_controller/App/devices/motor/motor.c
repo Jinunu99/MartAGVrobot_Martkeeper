@@ -13,8 +13,8 @@ extern TIM_HandleTypeDef htim1;  // TIM1: PA8, PA9
 extern TIM_HandleTypeDef htim3;  // TIM3: PA6, PA7
 
 #define DEFAULT_SPEED	100
-#define HIGH_SPEED		250 // 350
-#define LOW_SPEED		240
+#define HIGH_SPEED		420 // 350
+#define LOW_SPEED		410
 
 // General Wheel 100 500 450
 
@@ -57,8 +57,8 @@ void motor_f()
 {
     Set_Speed(DEFAULT_SPEED);
 
-    HAL_GPIO_WritePin(M1_IN1_PORT, M1_IN1_PIN, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(M1_IN2_PORT, M1_IN2_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(M1_IN1_PORT, M1_IN1_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(M1_IN2_PORT, M1_IN2_PIN, GPIO_PIN_SET);
     HAL_GPIO_WritePin(M2_IN1_PORT, M2_IN1_PIN, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(M2_IN2_PORT, M2_IN2_PIN, GPIO_PIN_SET);
 
@@ -72,8 +72,8 @@ void motor_b()
 {
     Set_Speed(DEFAULT_SPEED);
 
-    HAL_GPIO_WritePin(M1_IN1_PORT, M1_IN1_PIN, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(M1_IN2_PORT, M1_IN2_PIN, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(M1_IN1_PORT, M1_IN1_PIN, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(M1_IN2_PORT, M1_IN2_PIN, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(M2_IN1_PORT, M2_IN1_PIN, GPIO_PIN_SET);
     HAL_GPIO_WritePin(M2_IN2_PORT, M2_IN2_PIN, GPIO_PIN_RESET);
 
@@ -86,7 +86,7 @@ void motor_b()
 void motor_l()
 {
     // 좌측 감속, 우측 강화
-    Set_Wheel_Speed(LOW_SPEED, HIGH_SPEED, LOW_SPEED, HIGH_SPEED);  // M1, M3 좌 / M2, M4 우
+    Set_Wheel_Speed(LOW_SPEED, HIGH_SPEED, LOW_SPEED, HIGH_SPEED);  // M2, M3 좌  / M1, M4 우
 
     HAL_GPIO_WritePin(M1_IN1_PORT, M1_IN1_PIN, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(M1_IN2_PORT, M1_IN2_PIN, GPIO_PIN_SET);
@@ -95,8 +95,8 @@ void motor_l()
 
     HAL_GPIO_WritePin(M3_IN1_PORT, M3_IN1_PIN, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(M3_IN2_PORT, M3_IN2_PIN, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(M4_IN1_PORT, M4_IN1_PIN, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(M4_IN2_PORT, M4_IN2_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(M4_IN1_PORT, M4_IN1_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(M4_IN2_PORT, M4_IN2_PIN, GPIO_PIN_SET);
 }
 
 void motor_r()
@@ -104,13 +104,13 @@ void motor_r()
     // 우측 감속, 좌측 강화
     Set_Wheel_Speed(HIGH_SPEED, LOW_SPEED, HIGH_SPEED, LOW_SPEED);
 
-    HAL_GPIO_WritePin(M1_IN1_PORT, M1_IN1_PIN, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(M1_IN2_PORT, M1_IN2_PIN, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(M2_IN1_PORT, M2_IN1_PIN, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(M2_IN2_PORT, M2_IN2_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(M1_IN1_PORT, M1_IN1_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(M1_IN2_PORT, M1_IN2_PIN, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(M2_IN1_PORT, M2_IN1_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(M2_IN2_PORT, M2_IN2_PIN, GPIO_PIN_SET);
 
-    HAL_GPIO_WritePin(M3_IN1_PORT, M3_IN1_PIN, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(M3_IN2_PORT, M3_IN2_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(M3_IN1_PORT, M3_IN1_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(M3_IN2_PORT, M3_IN2_PIN, GPIO_PIN_SET);
     HAL_GPIO_WritePin(M4_IN1_PORT, M4_IN1_PIN, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(M4_IN2_PORT, M4_IN2_PIN, GPIO_PIN_SET);
 }
@@ -144,11 +144,23 @@ void motor_s()
     HAL_GPIO_WritePin(M4_IN2_PORT, M4_IN2_PIN, GPIO_PIN_RESET);
 }
 
+
+//		M2          M3
+//		[↙]        [↘]
+//		┌────────────┐
+//		│            │		IN1 : RESET		IN1 : SET
+//	앞	│    AGV     │		IN2 : SET		IN2 : RESET
+//		│   Robot    │		-> Forward		-> Backward
+//		│            │
+//		└────────────┘
+//		[↖]        [↗]
+//		M1          M4
+
 void motor_sl()
 {
     // 좌측 평행 이동
-    HAL_GPIO_WritePin(M1_IN1_PORT, M1_IN1_PIN, GPIO_PIN_RESET);  // M1 CCW
-    HAL_GPIO_WritePin(M1_IN2_PORT, M1_IN2_PIN, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(M1_IN1_PORT, M1_IN1_PIN, GPIO_PIN_SET);  // M1 CCW
+    HAL_GPIO_WritePin(M1_IN2_PORT, M1_IN2_PIN, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(M2_IN1_PORT, M2_IN1_PIN, GPIO_PIN_RESET);  // M2 CCW
     HAL_GPIO_WritePin(M2_IN2_PORT, M2_IN2_PIN, GPIO_PIN_SET);
 
@@ -161,8 +173,8 @@ void motor_sl()
 void motor_sr()
 {
     // 우측 평행 이동
-    HAL_GPIO_WritePin(M1_IN1_PORT, M1_IN1_PIN, GPIO_PIN_SET);    // M1 CW
-    HAL_GPIO_WritePin(M1_IN2_PORT, M1_IN2_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(M1_IN1_PORT, M1_IN1_PIN, GPIO_PIN_RESET);    // M1 CW
+    HAL_GPIO_WritePin(M1_IN2_PORT, M1_IN2_PIN, GPIO_PIN_SET);
     HAL_GPIO_WritePin(M2_IN1_PORT, M2_IN1_PIN, GPIO_PIN_SET);    // M2 CW
     HAL_GPIO_WritePin(M2_IN2_PORT, M2_IN2_PIN, GPIO_PIN_RESET);
 

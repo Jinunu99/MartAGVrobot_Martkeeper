@@ -20,11 +20,6 @@ extern volatile uint8_t txFlag;                // TX 완료 플래그
 #define RX_SIZE				64
 uint8_t cmd[RX_SIZE];
 
-// Motor 관련 변수
-#define DEFAULT_SPEED		100
-#define HIGH_SPEED			300
-#define LOW_SPEED			290
-
 uint16_t distance;
 
 void apInit(void)
