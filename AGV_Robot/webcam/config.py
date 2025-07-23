@@ -25,10 +25,16 @@ TRACKER_CONFIG = {
     'distance_threshold': 50    # 거리 임계값 (픽셀)
 }
 
+# 15회 관찰 설정
+OBSERVATION_CONFIG = {
+    'max_observations': 15,     # 총 관찰 횟수
+    'show_progress': True       # 진행상황 표시
+}
+
 # 카메라 설정 (라즈베리파이 최적화)
 CAMERA_CONFIG = {
-    'width': 240,               # 320 → 240 (성능 최적화)
-    'height': 240,              # 320 → 240 (성능 최적화)
+    'width': 640,               # 640 웹캡 해상도에 맞게 적용
+    'height': 360,              # 360 웹캡 해상도에 맞게 적용
     'fps': 6,                   # 10 → 6 (CPU 부하 감소)
     'buffer_size': 1,           # 버퍼 크기
     'detection_interval': 5,    # 5프레임마다 디텍션
@@ -62,7 +68,7 @@ FPS_CONFIG = {
 
 # 신뢰도 조절 설정
 CONFIDENCE_CONFIG = {
-    'min_threshold': 0.3,    
+    'min_threshold': 0.4,    
     'max_threshold': 0.9,
     'adjustment_step': 0.05
 }

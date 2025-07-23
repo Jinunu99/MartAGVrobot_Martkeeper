@@ -1,12 +1,13 @@
 import cv2
 import time
 import os
+from datetime import datetime
 from ultralytics import YOLO
 import numpy as np
-from collections import deque
+from collections import deque, Counter
 
 from webcam.tracker import ObjectTracker
-from webcam.count_reports import print_count_report
+from webcam.count_reports import print_final_report
 from webcam.config import *
 
 class SnackDetector:
@@ -20,7 +21,11 @@ class SnackDetector:
         self.tracker = None
         self.frame_count = 0
         self.conf_threshold = CONFIDENCE_THRESHOLD
-        self.count_history = deque(maxlen=REPORT_CONFIG['max_count_history'])
+        
+        # 15회 관찰 관련 변수들
+        self.observation_count = 0  # 현재 관찰 횟수
+        self.observation_results = []  # 각 관찰의 결과 저장
+        self.max_observations = OBSERVATION_CONFIG['max_observations']
         
     def initialize_model(self):
         """모델 초기화"""
@@ -131,7 +136,7 @@ class SnackDetector:
         # 클래스별 개수 계산
         class_counts, total_count = self.tracker.get_count_summary()
         
-        print(f"\n📊 멀티보팅 결과 (프레임 {self.frame_count}):")
+        print(f"\n📊 멀티보팅 결과 (관찰 {self.observation_count}/{self.max_observations}):")
         print(f"  총 객체: {total_count}개")
         
         if class_counts:
@@ -152,78 +157,87 @@ class SnackDetector:
             print(f"  안정도 높음: {high_stability}개")
         
         print("-" * 50)
+    
+    def print_observation_progress(self):
+        """관찰 진행상황 출력"""
+        if not OBSERVATION_CONFIG['show_progress']:
+            return
             
-    def check_control_files(self):
-        """파일 기반 제어 확인 (GUI 키입력 대체)"""
-        control_dir = CONTROL_CONFIG['control_dir']
+        progress_bar = "█" * self.observation_count + "░" * (self.max_observations - self.observation_count)
+        print(f"\n🎯 관찰 진행상황:")
+        print(f"  진행: [{progress_bar}] {self.observation_count}/{self.max_observations}")
         
-        # 종료 파일 확인
-        quit_file = os.path.join(control_dir, CONTROL_CONFIG['quit_file'])
-        if os.path.exists(quit_file):
-            os.remove(quit_file)
-            print("🔚 종료 신호 감지")
-            return 'quit'
+    def record_observation_result(self):
+        """현재 관찰 결과 기록"""
+        class_counts, total_count = self.tracker.get_count_summary()
         
-        # 스크린샷 파일 확인
-        screenshot_file = os.path.join(control_dir, CONTROL_CONFIG['screenshot_file'])
-        if os.path.exists(screenshot_file):
-            os.remove(screenshot_file)
-            return 'screenshot'
+        observation_result = {
+            'observation_number': self.observation_count,
+            'total_count': total_count,
+            'class_counts': dict(class_counts),
+            'timestamp': datetime.now().isoformat()
+        }
         
-        # 통계 파일 확인
-        stats_file = os.path.join(control_dir, CONTROL_CONFIG['stats_file'])
-        if os.path.exists(stats_file):
-            os.remove(stats_file)
-            return 'stats'
+        self.observation_results.append(observation_result)
+        print(f"📝 관찰 {self.observation_count} 결과 기록 완료")
+    
+    def analyze_final_results(self):
+        """15회 관찰 완료 후 빈도 기반 최종 분석"""
+        print("\n" + "="*60)
+        print("📊 15회 관찰 완료 - 빈도 기반 최종 분석")
+        print("="*60)
         
-        # 보고서 파일 확인
-        report_file = os.path.join(control_dir, CONTROL_CONFIG['report_file'])
-        if os.path.exists(report_file):
-            os.remove(report_file)
-            return 'report'
+        if not self.observation_results:
+            print("❌ 관찰 결과가 없습니다.")
+            return
         
-        # 리셋 파일 확인
-        reset_file = os.path.join(control_dir, CONTROL_CONFIG['reset_file'])
-        if os.path.exists(reset_file):
-            os.remove(reset_file)
-            return 'reset'
+        # 모든 등장한 클래스 수집
+        all_classes = set()
+        for result in self.observation_results:
+            all_classes.update(result['class_counts'].keys())
         
-        return None
+        final_results = {}
+        total_products = 0
         
-    def handle_control_command(self, command, frame=None):
-        """제어 명령 처리"""
-        if command == 'quit':
-            return False
-        elif command == 'screenshot' and frame is not None:
-            filename = f"detection_{self.frame_count}_{int(time.time())}.jpg"
-            cv2.imwrite(filename, frame)
-            print(f"📸 스크린샷 저장: {filename}")
-        elif command == 'stats':
-            class_counts, total_count = self.tracker.get_count_summary()
-            print(f"\n📊 현재 통계:")
-            print(f"  프레임: {self.frame_count}")
-            print(f"  총 객체: {total_count}개")
-            for class_name, count in class_counts.items():
-                if count > 0:
-                    # 브랜드_제품명까지 표시 (예: orion_Pocachip)
-                    name_parts = class_name.split('_')
-                    if len(name_parts) >= 2:
-                        display_name = f"{name_parts[0]}_{name_parts[1]}"
-                    else:
-                        display_name = class_name
-                    print(f"  {display_name}: {count}개")
-        elif command == 'report':
-            class_counts, total_count = self.tracker.get_count_summary()
-            print_count_report(self.count_history, class_counts, total_count)
-        elif command == 'reset':
-            self.initialize_tracker()
-            print("🔄 추적기 리셋 완료")
+        print("🔍 클래스별 빈도 분석:")
         
-        return True
+        for class_name in all_classes:
+            # 각 클래스의 개수별 빈도 계산
+            count_frequency = Counter()
+            for result in self.observation_results:
+                count = result['class_counts'].get(class_name, 0)
+                count_frequency[count] += 1
+            
+            # 가장 빈번한 개수 선택
+            most_frequent_count = count_frequency.most_common(1)[0][0]
+            frequency_score = count_frequency[most_frequent_count] / len(self.observation_results)
+            
+            if most_frequent_count > 0:  # 0개가 아닌 경우만
+                final_results[class_name] = {
+                    'count': most_frequent_count,
+                    'frequency_score': frequency_score,
+                    'appeared_in': sum(1 for r in self.observation_results if r['class_counts'].get(class_name, 0) > 0)
+                }
+                total_products += most_frequent_count
+                
+                # 브랜드_제품명까지 표시
+                name_parts = class_name.split('_')
+                display_name = f"{name_parts[0]}_{name_parts[1]}" if len(name_parts) >= 2 else class_name
+                
+                print(f"  ✅ {display_name}: {most_frequent_count}개 (빈도: {frequency_score:.2f}, 등장: {final_results[class_name]['appeared_in']}/15회)")
+        
+        print(f"\n📋 최종 결과:")
+        print(f"  총 제품 수: {total_products}개")
+        print(f"  제품 종류: {len(final_results)}가지")
+        
+    def is_observation_complete(self):
+        """15회 관찰 완료 여부 확인"""
+        return self.observation_count >= self.max_observations
         
     def run(self):
         """메인 실행 함수 (터미널 전용)"""
-        print("🍪 Level 2 Multi-frame Voting 객체 개수 파악 시스템 (터미널 모드)")
+        print("🍪 Level 2 Multi-frame Voting 15회 관찰 시스템 (터미널 모드)")
+        print(f"🎯 총 {self.max_observations}회 관찰 후 빈도 기반 최종 판정")
         print("=" * 60)
         
         # 초기화
@@ -231,11 +245,9 @@ class SnackDetector:
         actual_width, actual_height = self.initialize_camera()
         self.initialize_tracker()
         
-        print("\n🎯 터미널 모드 객체 개수 파악 시작!")
-        print("\n자동 기능:")
-        print(f"  통계 출력: 매 {SIMPLE_CONFIG['auto_stats_interval']}프레임마다")
-        print(f"  상세 보고서: 매 {SIMPLE_CONFIG['auto_report_interval']}프레임마다")
-        print("  종료: Ctrl+C")
+        print(f"\n🎯 {self.max_observations}회 관찰 시작!")
+        print(f"  detection 간격: 매 {CAMERA_CONFIG['detection_interval']}프레임")
+        print("  종료: 15회 관찰 완료 또는 Ctrl+C")
         print("=" * 60)
         
         # FPS 측정
@@ -264,53 +276,50 @@ class SnackDetector:
                 
                 # 탐지는 설정된 간격마다
                 if self.frame_count % CAMERA_CONFIG['detection_interval'] == 0:
+                    # 15회 관찰 완료 체크
+                    if self.is_observation_complete():
+                        print("\n🎉 15회 관찰 완료! 최종 분석을 시작합니다.")
+                        break
+                    
                     print(f"\n🔍 탐지 실행... (프레임 {self.frame_count})")
                     current_detections = self.detect_objects(frame)
                     
                     # 추적기 업데이트 (Level 2 Multi-frame Voting)
                     stable_objects = self.tracker.update(current_detections)
                     
+                    # 관찰 카운트 증가
+                    self.observation_count += 1
+                    
                     # 터미널 출력
                     self.print_detection_summary(stable_objects)
                     
-                    # 개수 통계 기록
-                    class_counts, total_count = self.tracker.get_count_summary()
-                    self.count_history.append({
-                        'frame': self.frame_count,
-                        'total': total_count,
-                        'classes': dict(class_counts)
-                    })
+                    # 관찰 진행상황 출력
+                    self.print_observation_progress()
+                    
+                    # 관찰 결과 기록
+                    self.record_observation_result()
                 
                 # 자동 통계 출력
                 if self.frame_count % SIMPLE_CONFIG['auto_stats_interval'] == 0:
                     class_counts, total_count = self.tracker.get_count_summary()
                     print(f"\n📊 자동 통계 (프레임 {self.frame_count}):")
-                    print(f"  FPS: {current_fps:.1f}, 총 객체: {total_count}개")
-                    for class_name, count in class_counts.items():
-                        if count > 0:
-                            name_parts = class_name.split('_')
-                            if len(name_parts) >= 2:
-                                display_name = f"{name_parts[0]}_{name_parts[1]}"
-                            else:
-                                display_name = class_name
-                            print(f"  {display_name}: {count}개")
-                
-                # 자동 보고서 출력
-                if self.frame_count % SIMPLE_CONFIG['auto_report_interval'] == 0 and self.count_history:
-                    class_counts, total_count = self.tracker.get_count_summary()
-                    print(f"\n📋 자동 보고서 (프레임 {self.frame_count}):")
-                    print_count_report(self.count_history, class_counts, total_count)
+                    print(f"  FPS: {current_fps:.1f}, 관찰: {self.observation_count}/{self.max_observations}")
+                    print(f"  현재 총 객체: {total_count}개")
                 
                 # 진행상황 주기적 출력
                 if self.frame_count % REPORT_CONFIG['progress_report_interval'] == 0:
-                    class_counts, total_count = self.tracker.get_count_summary()
-                    print(f"\n📈 진행상황: 프레임 {self.frame_count}, FPS {current_fps:.1f}, 총 객체 {total_count}개")
+                    print(f"\n📈 진행상황: 프레임 {self.frame_count}, FPS {current_fps:.1f}, 관찰 {self.observation_count}/{self.max_observations}")
                 
                 # CPU 부하 감소를 위한 짧은 대기
                 time.sleep(0.01)
                 
         except KeyboardInterrupt:
             print("\n🔚 Ctrl+C로 종료 요청됨")
+        
+        # 최종 분석 수행
+        if self.observation_results:
+            self.analyze_final_results()
+            print_final_report(self.observation_results)
         
         # 정리
         self.cap.release()

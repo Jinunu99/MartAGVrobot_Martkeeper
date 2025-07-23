@@ -20,10 +20,14 @@ class ObjectTracker:
         self.class_counts = defaultdict(int)
         self.total_objects = 0
         
+        # 업데이트 횟수
+        self.update_count = 0
+        
     def update(self, current_detections):
         """새로운 프레임의 탐지 결과로 업데이트"""
         # 현재 탐지 결과를 히스토리에 추가
         self.detection_history.append(current_detections)
+        self.update_count += 1
         
         # Multi-frame Voting 수행
         self.stable_objects = self._perform_voting()
@@ -151,7 +155,8 @@ class ObjectTracker:
             'confidence': max_confidence,
             'votes': len(cluster),
             'vote_score': vote_score,
-            'stability': stability_score
+            'stability': stability_score,
+            'update_count': self.update_count
         }
     
     def _update_statistics(self):
