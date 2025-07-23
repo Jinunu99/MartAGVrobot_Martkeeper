@@ -18,6 +18,8 @@ class PathExecutor:
         self.uart = uart
         self.tracer = tracer
         self.current_dir = start_dir
+        self.command_queue = []
+        self.executing = False
 
     def stm32_format_command(self, cmd):
         """
@@ -69,35 +71,49 @@ class PathExecutor:
         """
         path = self.planner.path_find()
         if not path:
-            print("[PathExecutor] ❌ 경로 없음")
             return False
 
         # 절대 방향 → 상대 명령어 변환
-        print(f"\n🔷 전체 경로: {path}")
+        print(f"\n 전체 경로: {path}")
 
         abs_dirs = DirectionResolver.get_movement_directions(path)
-        print(f"📍 절대 방향: {abs_dirs}")
+        print(f" 절대 방향: {abs_dirs}")
 
         rel_cmds = DirectionResolver.convert_to_relative_commands(abs_dirs, self.current_dir)
-        print(f"🧭 RC카 명령어: {rel_cmds}")
+        print(f" RC카 명령어: {rel_cmds}")
 
         # 방향 상태 갱신
         if abs_dirs:
             self.current_dir = abs_dirs[-1]
 
-        print(f"🧾 남은 쇼핑 리스트: {self.planner.get_shopping_list()}")
+        print(f" 남은 쇼핑 리스트: {self.planner.get_shopping_list()}")
         print("--------------------------------------------------\n")
 
-        # 명령어 순차 실행
-        for cmd in rel_cmds:
-            stm32_cmd = self.stm32_format_command(cmd)
-            self.send_uart(stm32_cmd + '\n')
-            print(f"[PathExecutor] 전송: {stm32_cmd}")
-
-            if stm32_cmd == 'F':
-                self.follow_line_until_aligned(frame_getter)
-            else:
-                time.sleep(1.5)  # 회전은 일정 시간 대기
-
-        print("[PathExecutor] ✅ 경로 주행 완료")
+        self.command_queue = rel_cmds
+        self.executing = True
         return True
+
+    def execute_next_command(self, frame_getter):
+        if not self.command_queue:
+            if self.executing:
+                print("[PathExecutor]  경로 주행 완료")
+                self.executing = False
+            return
+
+        cmd = self.command_queue[0]  # peek!
+        if cmd == 'F':
+            self.send_uart('F\n')
+            self.follow_line_until_aligned(frame_getter)
+        else:
+            # 회전(R90 등)은 한 번만 실행하고 바로 pop
+            self.command_queue.pop(0)
+            self.send_uart(cmd+'\n')
+            print(f"[PathExecutor] 전송: {cmd}")
+            time.sleep(1.5)
+
+    def plan_new_path(self, frame_getter):
+        if self.planner.get_shopping_list():
+            print("[PathExecutor]  plan_new_path 진입")
+            success = self.run_to_next_target(frame_getter=frame_getter)
+            if not success:
+                print("[PathExecutor]  경로 생성 실패, 중단합니다.")
