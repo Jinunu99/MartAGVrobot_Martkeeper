@@ -38,7 +38,7 @@ class SnackDetector:
     def initialize_camera(self):
         """카메라 초기화"""
         print("📹 웹캠 초기화 중...")
-        self.cap = cv2.VideoCapture(0)
+        self.cap = cv2.VideoCapture(2)
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, CAMERA_CONFIG['buffer_size'])
         
         # 라즈베리파이 최적화된 해상도
