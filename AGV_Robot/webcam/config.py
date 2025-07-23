@@ -3,8 +3,8 @@ import os
 os.environ['PYTORCH_DISABLE_WEIGHTS_ONLY'] = '1'
 
 # 모델 설정
-MODEL_PATH = "./best.pt"
-CONFIDENCE_THRESHOLD = 0.25
+MODEL_PATH = "./epoch60.pt"
+CONFIDENCE_THRESHOLD = 0.4  # 라즈베리파이 최적화를 위해 높임
 
 # 클래스명 정의
 CLASS_NAMES = [
@@ -17,44 +17,34 @@ CLASS_NAMES = [
     'orion_Gosomi_80G', 'orion_Pocachip_Original_66G', 'orion_chokchokhan_Chocochip_240G'
 ]
 
-# 추적기 설정
+# 추적기 설정 (라즈베리파이 최적화)
 TRACKER_CONFIG = {
-    'max_history': 15,      # 최대 히스토리 프레임 수
-    'min_votes': 8,         # 최소 투표 수 (유효 객체 판정)
-    'iou_threshold': 0.3,   # IoU 임계값 (같은 객체 판정)
-    'distance_threshold': 50 # 거리 임계값 (픽셀)
+    'max_history': 7,           # 15 → 7 (메모리 절약)
+    'min_votes': 4,             # 8 → 4 (빠른 결론)
+    'iou_threshold': 0.3,       # IoU 임계값 (같은 객체 판정)
+    'distance_threshold': 50    # 거리 임계값 (픽셀)
 }
 
-# 카메라 설정
+# 15회 관찰 설정
+OBSERVATION_CONFIG = {
+    'max_observations': 15,     # 총 관찰 횟수
+    'show_progress': True       # 진행상황 표시
+}
+
+# 카메라 설정 (라즈베리파이 최적화)
 CAMERA_CONFIG = {
-    'width': 320,           # 프레임 너비
-    'height': 320,          # 프레임 높이  
-    'fps': 10,              # 프레임률
-    'buffer_size': 1,       # 버퍼 크기
-    'detection_interval': 10, # 탐지 실행 간격 (프레임)
-    'warmup_frames': 10     # 워밍업 프레임 수
+    'width': 640,               # 640 웹캡 해상도에 맞게 적용
+    'height': 360,              # 360 웹캡 해상도에 맞게 적용
+    'fps': 6,                   # 10 → 6 (CPU 부하 감소)
+    'buffer_size': 1,           # 버퍼 크기
+    'detection_interval': 5,    # 5프레임마다 디텍션
+    'warmup_frames': 3          # 3 (빠른 시작)
 }
 
-# UI 설정
-UI_CONFIG = {
-    'window_name': 'Level 2 Object Counting System',
-    'window_width': 800,
-    'window_height': 600,
-    'font_scale': 0.7,
-    'font_thickness': 2,
-    'gui_test_duration': 2000  # 밀리초
-}
-
-# 색상 설정 (BGR 형식)
-COLORS = {
-    'very_stable': (0, 255, 0),      # 매우 안정: 초록색
-    'stable': (0, 255, 255),         # 안정: 노란색  
-    'moderate': (0, 165, 255),       # 보통: 주황색
-    'unstable': (255, 0, 255),       # 불안정: 보라색
-    'text': (255, 255, 255),         # 텍스트: 흰색
-    'count_text': (0, 255, 0),       # 개수 텍스트: 초록색
-    'class_text': (255, 255, 0),     # 클래스 텍스트: 노란색
-    'error': (0, 0, 255)             # 에러: 빨간색
+# 간단한 실행 설정
+SIMPLE_CONFIG = {
+    'auto_stats_interval': 100,     # 자동 통계 출력 간격 (프레임)
+    'auto_report_interval': 300     # 자동 보고서 출력 간격 (프레임)
 }
 
 # 안정성 임계값
@@ -64,32 +54,29 @@ STABILITY_THRESHOLDS = {
     'moderate': 0.4
 }
 
-# 보고서 설정
+# 보고서 설정 (메모리 최적화)
 REPORT_CONFIG = {
-    'max_count_history': 100,        # 최대 개수 히스토리 보관
-    'recent_frames_analysis': 20,    # 최근 프레임 분석 개수
-    'progress_report_interval': 100  # 진행상황 출력 간격
+    'max_count_history': 50,        # 100 → 50 (메모리 절약)
+    'recent_frames_analysis': 15,   # 20 → 15
+    'progress_report_interval': 50  # 100 → 50 (더 자주 출력)
 }
 
 # FPS 측정 설정
 FPS_CONFIG = {
-    'measurement_interval': 30       # FPS 측정 간격 (프레임)
-}
-
-# 키 매핑
-KEY_MAPPINGS = {
-    'quit': ord('q'),
-    'screenshot': ord(' '),
-    'statistics': ord('s'), 
-    'increase_conf': [ord('+'), ord('=')],
-    'decrease_conf': ord('-'),
-    'reset_tracker': ord('r'),
-    'count_report': ord('c')
+    'measurement_interval': 20       # 30 → 20 (더 자주 측정)
 }
 
 # 신뢰도 조절 설정
 CONFIDENCE_CONFIG = {
-    'min_threshold': 0.1,
+    'min_threshold': 0.4,    
     'max_threshold': 0.9,
     'adjustment_step': 0.05
+}
+
+# 터미널 출력 설정
+TERMINAL_CONFIG = {
+    'verbose_detection': True,      # 개별 탐지 결과 출력 여부
+    'show_inference_time': True,    # 추론 시간 출력 여부
+    'show_voting_results': True,    # 멀티보팅 결과 출력 여부
+    'compact_output': False         # 간결한 출력 모드
 }

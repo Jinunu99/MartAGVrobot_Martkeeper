@@ -1,56 +1,99 @@
 import numpy as np
+from collections import Counter
 
-def print_count_report(count_history, current_counts, current_total):
-    """개수 카운팅 보고서 출력"""
+def print_final_report(observation_results):
+    """15회 관찰 완료 후 최종 보고서 출력"""
     print("\n" + "="*60)
-    print("📊 Level 2 Multi-frame Voting 개수 파악 보고서")
+    print("📊 15회 관찰 완료 - 최종 보고서")
     print("="*60)
     
-    if not count_history:
-        print("❌ 충분한 데이터가 없습니다.")
+    if not observation_results:
+        print("❌ 관찰 데이터가 없습니다.")
         return
     
-    # 최근 데이터 분석
-    recent_counts = list(count_history)[-20:]  # 최근 20프레임
+    # 관찰 과정 요약
+    print(f"📈 관찰 과정 요약:")
+    print(f"  총 관찰 횟수: {len(observation_results)}회")
     
-    # 안정성 분석
-    total_counts = [entry['total'] for entry in recent_counts]
+    # 총 객체 수 변화 분석
+    total_counts = [result['total_count'] for result in observation_results]
     if total_counts:
         avg_total = sum(total_counts) / len(total_counts)
         std_total = np.std(total_counts)
-        stability = 1.0 - (std_total / max(avg_total, 1))
+        min_total = min(total_counts)
+        max_total = max(total_counts)
         
-        print(f"📈 총 객체 수 안정성:")
-        print(f"  현재: {current_total}개")
-        print(f"  평균: {avg_total:.1f}개")
-        print(f"  표준편차: {std_total:.2f}")
-        print(f"  안정성: {stability:.2f} ({'안정' if stability > 0.8 else '불안정'})")
+        print(f"  총 객체 수 변화: {min_total}~{max_total}개 (평균: {avg_total:.1f}개)")
+        
+        if std_total < 1.0:
+            stability_status = "매우 안정적"
+        elif std_total < 2.0:
+            stability_status = "안정적"
+        else:
+            stability_status = "변동적"
+        print(f"  안정성: {stability_status} (표준편차: {std_total:.2f})")
     
     # 클래스별 상세 분석
-    print(f"\n🏷️ 클래스별 개수 현황:")
-    for class_name, count in current_counts.items():
-        if count > 0:
-            # 최근 히스토리에서 해당 클래스 분석
-            class_history = []
-            for entry in recent_counts:
-                class_history.append(entry['classes'].get(class_name, 0))
+    print(f"\n🏷️ 클래스별 빈도 분석:")
+    
+    # 모든 등장한 클래스 수집
+    all_classes = set()
+    for result in observation_results:
+        all_classes.update(result['class_counts'].keys())
+    
+    if not all_classes:
+        print("  탐지된 객체가 없습니다.")
+        return
+    
+    for class_name in sorted(all_classes):
+        # 각 클래스의 개수별 빈도 계산
+        count_frequency = Counter()
+        appearances = 0
+        
+        for result in observation_results:
+            count = result['class_counts'].get(class_name, 0)
+            count_frequency[count] += 1
+            if count > 0:
+                appearances += 1
+        
+        # 가장 빈번한 개수
+        most_common = count_frequency.most_common(1)[0]
+        most_frequent_count = most_common[0]
+        frequency = most_common[1]
+        
+        # 브랜드_제품명까지 표시
+        name_parts = class_name.split('_')
+        if len(name_parts) >= 2:
+            display_name = f"{name_parts[0]}_{name_parts[1]}"
+        else:
+            display_name = class_name
+        
+        if most_frequent_count > 0:
+            frequency_ratio = frequency / len(observation_results)
+            appearance_ratio = appearances / len(observation_results)
             
-            if class_history:
-                avg_count = sum(class_history) / len(class_history)
-                std_count = np.std(class_history)
-                class_stability = 1.0 - (std_count / max(avg_count, 1))
-                
-                short_name = class_name.split('_')[0] if '_' in class_name else class_name
-                status = "🟢" if class_stability > 0.8 else "🟡" if class_stability > 0.6 else "🔴"
-                
-                print(f"  {status} {short_name}: {count}개 (평균:{avg_count:.1f}, 안정성:{class_stability:.2f})")
+            # 안정성 평가
+            if frequency_ratio >= 0.8:
+                stability_icon = "✅"
+                stability_text = "매우 안정"
+            elif frequency_ratio >= 0.6:
+                stability_icon = "🟡"
+                stability_text = "안정"
+            else:
+                stability_icon = "⚠️"
+                stability_text = "불안정"
+            
+            print(f"  {stability_icon} {display_name}:")
+            print(f"    최종 개수: {most_frequent_count}개")
+            print(f"    빈도: {frequency}/{len(observation_results)}회 ({frequency_ratio:.2f})")
+            print(f"    등장률: {appearances}/{len(observation_results)}회 ({appearance_ratio:.2f})")
+            print(f"    안정성: {stability_text}")
+            
+            # 개수 변화 패턴 표시
+            all_counts = [result['class_counts'].get(class_name, 0) for result in observation_results]
+            unique_counts = sorted(set(all_counts))
+            if len(unique_counts) > 1:
+                count_pattern = ", ".join([f"{c}개×{all_counts.count(c)}" for c in unique_counts if c >= 0])
+                print(f"    변화 패턴: {count_pattern}")
     
-    print(f"\n💡 추천사항:")
-    if stability > 0.8:
-        print("  ✅ 개수 파악이 안정적입니다. 현재 결과를 신뢰할 수 있습니다.")
-    elif stability > 0.6:
-        print("  🟡 개수가 약간 변동됩니다. 몇 초 더 관찰해보세요.")
-    else:
-        print("  ⚠️ 개수가 불안정합니다. 조명이나 카메라 각도를 조정해보세요.")
-    
-    print("="*60 + "\n")
+    print("="*60)
