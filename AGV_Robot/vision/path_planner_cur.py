@@ -22,6 +22,7 @@ class PathPlanner:
         return self.shopping_list
 
     def bfs(self, target_x, target_y):
+        print(f"[BFS] BFS 탐색 시작: 현재=({self.now_pos_x},{self.now_pos_y}) → 목표=({target_x},{target_y})")
         move = [[-1, 0], [0, 1], [1, 0], [0, -1]]   # AGV 이동방향 (상, 우, 하, 좌 순서로)
         
         n, m = len(self.position_map), len(self.position_map[0])
@@ -76,9 +77,9 @@ class PathPlanner:
         self.middle_path = best_path
         if best_next_path in self.shopping_list:
             self.shopping_list.remove(best_next_path)   # 가장 가까운 경로는 탐색했으니 삭제시켜주자
-        self.now_pos_x, self.now_pos_y = best_next_path # 현재 위치를 업데이트
-            
+        self.now_pos_x, self.now_pos_y = best_next_path # 현재 위치를 업데이트     
         return self.middle_path # 가장 짧은 거리까지의 모든 경로를 반환함
+    
 
 # ================ 경로 방향 함수 전체 절대경로와 Rc상대방향============#
 class DirectionResolver:
@@ -144,25 +145,25 @@ if __name__ == "__main__":
     path_planner.set_shopping_list([[0, 3], [0, 5], [0, 1]]) # 장바구니 리스트를 전달받아서
 
 
-    current_dir = 'U'  # 초기 방향: 위쪽
+    # current_dir = 'U'  # 초기 방향: 위쪽
 
-    while path_planner.get_shopping_list():
-        path = path_planner.path_find()
-        if not path:
-            print("❌ 경로를 찾을 수 없습니다.")
-            break
+    # while path_planner.get_shopping_list():
+    #     path = path_planner.path_find()
+    #     if not path:
+    #         print("❌ 경로를 찾을 수 없습니다.")
+    #         break
 
-        print("🔷 전체 경로:", path)
-        abs_dirs = DirectionResolver.get_movement_directions(path)
-        print("📍 절대 방향:", abs_dirs)
+    #     print("🔷 전체 경로:", path)
+    #     abs_dirs = DirectionResolver.get_movement_directions(path)
+    #     print("📍 절대 방향:", abs_dirs)
 
-        # 상대방향 명령 생성 (이전 방향을 기반으로)
-        rel_cmds = DirectionResolver.convert_to_relative_commands(abs_dirs, start_dir=current_dir)
-        print("🧭 RC카 명령어:", rel_cmds)
+    #     # 상대방향 명령 생성 (이전 방향을 기반으로)
+    #     rel_cmds = DirectionResolver.convert_to_relative_commands(abs_dirs, start_dir=current_dir)
+    #     print("🧭 RC카 명령어:", rel_cmds)
 
-        # RC카의 방향을 마지막으로 이동한 방향으로 갱신
-        if abs_dirs:
-            current_dir = abs_dirs[-1]
+    #     # RC카의 방향을 마지막으로 이동한 방향으로 갱신
+    #     if abs_dirs:
+    #         current_dir = abs_dirs[-1]
 
-        print("남은 쇼핑 리스트:", path_planner.get_shopping_list())
-        print("--------------------------------------------------")
+    #     print("남은 쇼핑 리스트:", path_planner.get_shopping_list())
+    #     print("--------------------------------------------------")
