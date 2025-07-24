@@ -83,7 +83,7 @@ TERMINAL_CONFIG = {
 
 # 서버 설정 (간단 버전)
 SERVER_CONFIG = {
-    'url': 'http://100.123.1.124/manager_db/snack_stock',   # 서버 URL
+    'url': 'http://100.123.1.124:5000/manager_db/snack_stock',   # 서버 URL
     'timeout': 5,                                           # 타임아웃 (초)
     'device_id': 'adminlee'                                 # 디바이스 ID
 }
