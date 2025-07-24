@@ -74,9 +74,9 @@ class PathExecutor:
         rel_cmds = DirectionResolver.convert_to_relative_commands(abs_dirs, self.current_dir)
         print(f" RC카 명령어: {rel_cmds}")
 
-        # 방향 상태 갱신
-        if abs_dirs:
-            self.current_dir = abs_dirs[-1]
+        # # 방향 상태 갱신
+        # if abs_dirs:
+        #     self.current_dir = abs_dirs[-1]
 
         print(f" 남은 쇼핑 리스트: {self.planner.get_shopping_list()}")
         print("--------------------------------------------------\n")
@@ -101,10 +101,10 @@ class PathExecutor:
         elif cmd in ('L90', 'R90'):
             print("[PathExecutor] L90/R90: 먼저 전진 후 회전")
             self.send_uart('F\n')
-            time.sleep(0.5)
+            time.sleep(0.85)
             self.send_uart(cmd+'\n')
             print(f"[PathExecutor] 전송: {cmd}")
-            time.sleep(1)
+            time.sleep(0.9)
 
             # 회전 후 current_dir 갱신
             self.current_dir = self._get_next_direction(self.current_dir, cmd)
@@ -116,6 +116,18 @@ class PathExecutor:
             # 기타 회전류 명령도 current_dir 갱신 필요 시 처리
             if cmd in ('L90', 'R90', 'B'):
                 self.current_dir = self._get_next_direction(self.current_dir, cmd)
+
+    def _get_next_direction(self, current_dir, cmd):
+        dirs = ['U', 'R', 'D', 'L']
+        idx = dirs.index(current_dir)
+        if cmd == 'R90':
+            return dirs[(idx + 1) % 4]
+        elif cmd == 'L90':
+            return dirs[(idx - 1) % 4]
+        elif cmd == 'B':
+            return dirs[(idx + 2) % 4]
+        else:
+            return current_dir
 
     def plan_new_path(self, frame_getter):
         if self.planner.get_shopping_list():

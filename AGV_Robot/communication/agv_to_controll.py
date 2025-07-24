@@ -37,20 +37,16 @@ class AgvToControll:
         # 이벤트 처리 변수
         self.send_event = threading.Event()
 
-    # AGV의 위치정보가 바뀌면 컨트롤러에 송신하도록
-    def set_position(self, x, y):
+    # AGV의 위치정보가 바뀌거나 목표 위치정보가 바뀌면
+    # 무조건 컨트롤러에 송신하도록
+    def set_position(self, x, y, t_x, t_y):
         self.position_x = x
         self.position_y = y
 
-        self.send_event.set() # 송신 이벤트 활성화
-
-    # AGV의 목표 위치정보가 바뀌면 컨트롤러에 송신하도록
-    def set_target_position(self, x, y):
-        self.target_x = x
-        self.target_y = y
+        self.target_x = t_x
+        self.target_y = t_y
 
         self.send_event.set() # 송신 이벤트 활성화
-
 
     # AGV <--> 컨트롤러 사이의 연결을 시작함
     def start(self):
@@ -86,12 +82,12 @@ class AgvToControll:
             self.send_thread = threading.Thread(target=self.send_to_controller)
             # 수신 스레드
             self.recv_thread = threading.Thread(target=self.recv_from_controller, args=(addr,))
-            # 테스트 스레드
-            self.test_thread = threading.Thread(target=self.test_test_test)
+            # # 테스트 스레드
+            # self.test_thread = threading.Thread(target=self.test_test_test)
 
             self.send_thread.start()
             self.recv_thread.start()
-            self.test_thread.start()
+            #self.test_thread.start()
 
     def send_frame(self):
         return {
