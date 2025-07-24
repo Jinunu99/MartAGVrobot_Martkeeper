@@ -80,3 +80,10 @@ TERMINAL_CONFIG = {
     'show_voting_results': True,    # 멀티보팅 결과 출력 여부
     'compact_output': False         # 간결한 출력 모드
 }
+
+# 서버 설정 (간단 버전)
+SERVER_CONFIG = {
+    'url': 'http://100.123.1.124/manager_db/snack_stock',   # 서버 URL
+    'timeout': 5,                                           # 타임아웃 (초)
+    'device_id': 'adminlee'                                 # 디바이스 ID
+}
