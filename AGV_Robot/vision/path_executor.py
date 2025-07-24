@@ -23,17 +23,8 @@ class PathExecutor:
         self.turning = False  # 회전 중 플래그
 
     def stm32_format_command(self, cmd):
-        """
-        고수준 상대 명령어 ('F', 'L', 'R', 'B') → STM32용 명령 문자열로 변환
-        """
-        if cmd == 'F':
-            return 'F'
-        elif cmd == 'R':
-            return 'R90'
-        elif cmd == 'L':
-            return 'L90'
-        elif cmd == 'B':
-            return 'B90'
+        if cmd in ('F', 'B', 'L90', 'R90'):
+            return cmd
         else:
             return 'S'
 
@@ -101,18 +92,30 @@ class PathExecutor:
                 self.executing = False
             return
 
-        cmd = self.command_queue[0]  # peek!
-        if cmd == 'F':
+        cmd = self.command_queue.pop(0)  # peek!
+
+        if cmd == 'F': # F는 current_dir은 그대로 진행
             self.send_uart('F\n')
             self.follow_line_until_aligned(frame_getter)
-        else:
-            # 회전(R90 등)은 한 번만 실행하고 바로 pop
-            self.turning = True
-            self.command_queue.pop(0)
+
+        elif cmd in ('L90', 'R90'):
+            print("[PathExecutor] L90/R90: 먼저 전진 후 회전")
+            self.send_uart('F\n')
+            time.sleep(0.5)
             self.send_uart(cmd+'\n')
             print(f"[PathExecutor] 전송: {cmd}")
-            time.sleep(3)
-            self.turning = False
+            time.sleep(1)
+
+            # 회전 후 current_dir 갱신
+            self.current_dir = self._get_next_direction(self.current_dir, cmd)
+
+        else:
+            self.send_uart(cmd+'\n')
+            print(f"[PathExecutor] 전송: {cmd}")
+            time.sleep(1)
+            # 기타 회전류 명령도 current_dir 갱신 필요 시 처리
+            if cmd in ('L90', 'R90', 'B'):
+                self.current_dir = self._get_next_direction(self.current_dir, cmd)
 
     def plan_new_path(self, frame_getter):
         if self.planner.get_shopping_list():

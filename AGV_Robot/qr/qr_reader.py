@@ -90,11 +90,17 @@ def qr_thread_func(shared_frame, qr_reader, agv_messenger):
             time.sleep(0.05)
             continue
 
+        # qr_results = qr_reader.scan(frame)
+        # if len(qr_results) > 0:
+        #     from utils.buffer import tx_queue
+        #     tx_queue.put("S\n")      # AGV 정지
+        #     time.sleep(0.6)          # 0.8초 멈춤 (값은 실험적으로!)
+
         qr_results = qr_reader.scan(frame)
         for qr in qr_results:
             if qr["id"]:
                 agv_messenger.send_qr_info(qr["id"])
-        time.sleep(0.15)
+        time.sleep(0.01)
 
 if __name__=='__main__':
     from picamera2 import Picamera2

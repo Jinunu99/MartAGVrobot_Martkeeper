@@ -8,7 +8,7 @@ class AgvToServer:
         self.SEND_TOPIC = f"agv/{agv_name}/qr_id"  # QR 정보 송신 토픽
         self.RECV_TOPIC = f"agv/{agv_name}/pos"    # 위치 정보 수신 토픽
 
-        self.BROKER_IP = "100.92.188.21"   # 관제센터 IP
+        self.BROKER_IP = "100.123.1.124"   # 관제센터 IP
 
         self.BROKER_PORT = 1883
         self.agv_name = agv_name
