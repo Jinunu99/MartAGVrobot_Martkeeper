@@ -3,7 +3,7 @@ from collections import deque
 class PathPlanner:
     def __init__(self, position_map):
         self.position_map = position_map             # AGV 위치 맵
-        self.now_pos_x, self.now_pos_y = [6, 0]      # 현재 위치
+        self.now_pos_x, self.now_pos_y = [5, 0]      # 현재 위치
         self.next_pos_x, self.next_pos_y = [0, 0]    # 다음 위치
         self.shopping_list = [[0, 1], [0, 3], [0, 5]]  # 쇼핑을 해야할 위치 (리스트)
         self.middle_path = []    # 현재 위치 ~ 다음 위치까지의 경로 (리스트)
@@ -103,7 +103,7 @@ class DirectionResolver:
                 directions.append('R')
         return directions
 
-    @staticmethod
+    @staticmethod  # current_dir 이 실제 RC카와 진행방향맞춰줌
     def get_relative_command(current_dir, next_dir):
         dirs = ['U', 'R', 'D', 'L']
         cur_idx = dirs.index(current_dir)
@@ -112,11 +112,11 @@ class DirectionResolver:
         if diff == 0:
             return 'F'
         elif diff == 1:
-            return 'R'
+            return 'R90'
         elif diff == 2:
             return 'B'
         elif diff == 3:
-            return 'L'
+            return 'L90'
 
     @staticmethod
     def convert_to_relative_commands(absolute_dirs, start_dir='U'):
@@ -125,24 +125,25 @@ class DirectionResolver:
         for next_dir in absolute_dirs:
             cmd = DirectionResolver.get_relative_command(current_dir, next_dir)
             commands.append(cmd)
-            current_dir = next_dir
+            current_dir = next_dir # 명령실행화 싱크 갱신이 돼야 함
         return commands
 
 
 if __name__ == "__main__":
-    grid = [[0, 0, 0, 0, 0, 0, 0],
-            [0, 1, 0, 1, 0, 1, 0],
-            [0, 0, 0, 0, 0, 0, 0],
-            [0, 1, 0, 1, 0, 1, 0],
-            [0, 0, 0, 0, 0, 0, 0],
-            [0, 1, 1, 1, 1, 1, 0]]
+    pass
+    # grid = [[0, 0, 0, 0, 0, 0, 0],
+    #         [0, 1, 0, 1, 0, 1, 0],
+    #         [0, 0, 0, 0, 0, 0, 0],
+    #         [0, 1, 0, 1, 0, 1, 0],
+    #         [0, 0, 0, 0, 0, 0, 0],
+    #         [0, 1, 1, 1, 1, 1, 0]]
 
-    # 현재위치
-    now_pos_x, now_pos_y = [5, 0]
+    # # 현재위치
+    # now_pos_x, now_pos_y = [5, 0]
 
-    path_planner = PathPlanner(grid)
-    path_planner.set_now_position(now_pos_x, now_pos_y) # 현재 AGV의 위치를 설정
-    path_planner.set_shopping_list([[0, 3], [0, 5], [0, 1]]) # 장바구니 리스트를 전달받아서
+    # path_planner = PathPlanner(grid)
+    # path_planner.set_now_position(now_pos_x, now_pos_y) # 현재 AGV의 위치를 설정
+    # path_planner.set_shopping_list([[0, 3], [0, 5], [0, 1]]) # 장바구니 리스트를 전달받아서
 
 
     # current_dir = 'U'  # 초기 방향: 위쪽

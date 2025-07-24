@@ -60,10 +60,15 @@ if __name__ == "__main__":
             [0, 0, 0, 0, 0, 0, 0]]
 
     planner = PathPlanner(grid)
+    planner.set_now_position(6, 0)
     executor = PathExecutor(planner, tx_queue, tracer, start_dir='U')
 
     #초기 쇼핑 리스트 설정 (향후 MQTT 또는 GUI로 동적으로 설정 가능하도록 확장해야함)
-    planner.set_shopping_list([[0, 1], [0, 3], [0, 5]])
+    planner.set_shopping_list([
+    [2, 0],  # 첫 번째 목표
+    [2, 2],  # 두 번째 목표
+    [0, 2]   # 세 번째 목표
+])
 
     try:
         while True:
@@ -81,7 +86,7 @@ if __name__ == "__main__":
                 print(f"[MAIN] 현재 위치로 설정: {x}, {y}")
 
                 planner.set_now_position(x, y)
-                executor.plan_new_path(picam2.capture_array)
+                executor.plan_new_path(frame)
                 agv_messenger.received_pos = False
      
                      # 한 칸 전진 완료(F pop)
@@ -90,15 +95,15 @@ if __name__ == "__main__":
                     print("[MAIN] F 명령 pop!")
 
                 # 회전류 명령(도착 후) 바로 실행
-                if executor.command_queue and executor.command_queue[0] in ('R', 'R90', 'L', 'L90', 'B', 'B90'):
-                    executor.execute_next_command(picam2.capture_array)
+                if executor.command_queue and executor.command_queue[0] in ('R90', 'L90', 'B', 'B90'):
+                    executor.execute_next_command(frame)
 
                 # 경로 완료 시, 새 경로 계획
                 if not executor.command_queue:
-                    executor.plan_new_path(picam2.capture_array)
+                    executor.plan_new_path(frame)
 
             # 명령어 실행 (한 번에 하나씩)
-            executor.execute_next_command(picam2.capture_array)
+            #executor.execute_next_command(frame)
 
             # UART 송신
             tx_queue.put(direction + "\n")
@@ -107,13 +112,13 @@ if __name__ == "__main__":
             print(f"[MAIN] Direction={direction}, Offset={offset}, Found={found}")
 
             # 디버깅 이미지 표시
-            # combined = tracer.draw_debug(annotated, binary)
-            # cv2.imshow("LineTracer (Annotated + Binary)", combined)
+            combined = tracer.draw_debug(annotated, binary)
+            cv2.imshow("LineTracer (Annotated + Binary)", combined)
 
-            # if cv2.waitKey(1) & 0xFF in (ord('q'), 27):
-            #     break
+            if cv2.waitKey(1) & 0xFF in (ord('q'), 27):
+                break
 
-            # time.sleep(0.01)
+            # time.sleep(0.015)
 
     except KeyboardInterrupt:
         pass
