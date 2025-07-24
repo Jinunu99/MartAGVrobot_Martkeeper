@@ -9,6 +9,7 @@ from collections import deque, Counter
 from webcam.tracker import ObjectTracker
 from webcam.count_reports import print_final_report
 from webcam.config import *
+from webcam.upload_count import send_to_server
 
 class SnackDetector:
     def __init__(self, model_path=MODEL_PATH):
@@ -229,7 +230,12 @@ class SnackDetector:
         print(f"\n📋 최종 결과:")
         print(f"  총 제품 수: {total_products}개")
         print(f"  제품 종류: {len(final_results)}가지")
-        
+
+        if final_results:
+            send_to_server(final_results)
+        else:
+            print("⚠️ 전송할 결과가 없습니다.")
+            
     def is_observation_complete(self):
         """15회 관찰 완료 여부 확인"""
         return self.observation_count >= self.max_observations
