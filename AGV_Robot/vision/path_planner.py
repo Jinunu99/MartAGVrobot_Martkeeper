@@ -75,8 +75,8 @@ class PathPlanner:
                 return None
         
         self.middle_path = best_path
-        if best_next_path in self.shopping_list:
-            self.shopping_list.remove(best_next_path)   # 가장 가까운 경로는 탐색했으니 삭제시켜주자
+        #if best_next_path in self.shopping_list:
+            # self.shopping_list.remove(best_next_path)   # 가장 가까운 경로는 탐색했으니 삭제시켜주자
         self.now_pos_x, self.now_pos_y = best_next_path # 현재 위치를 업데이트     
         return self.middle_path # 가장 짧은 거리까지의 모든 경로를 반환함
     
