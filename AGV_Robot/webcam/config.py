@@ -19,22 +19,22 @@ CLASS_NAMES = [
 
 # 추적기 설정 (라즈베리파이 최적화)
 TRACKER_CONFIG = {
-    'max_history': 7,           # 15 → 7 (메모리 절약)
-    'min_votes': 4,             # 8 → 4 (빠른 결론)
+    'max_history': 5,           # 7 → 5 (메모리 절약)
+    'min_votes': 3,             # 5 → 3 (빠른 결론)
     'iou_threshold': 0.3,       # IoU 임계값 (같은 객체 판정)
     'distance_threshold': 50    # 거리 임계값 (픽셀)
 }
 
 # 15회 관찰 설정
 OBSERVATION_CONFIG = {
-    'max_observations': 15,     # 총 관찰 횟수
+    'max_observations': 10,     # 총 관찰 횟수
     'show_progress': True       # 진행상황 표시
 }
 
 # 카메라 설정 (라즈베리파이 최적화)
 CAMERA_CONFIG = {
-    'width': 640,               # 640 웹캡 해상도에 맞게 적용
-    'height': 360,              # 360 웹캡 해상도에 맞게 적용
+    'width': 320,               # 640 웹캡 해상도에 맞게 적용
+    'height': 320,              # 360 웹캡 해상도에 맞게 적용
     'fps': 6,                   # 10 → 6 (CPU 부하 감소)
     'buffer_size': 1,           # 버퍼 크기
     'detection_interval': 5,    # 5프레임마다 디텍션
@@ -81,9 +81,3 @@ TERMINAL_CONFIG = {
     'compact_output': False         # 간결한 출력 모드
 }
 
-# 서버 설정 (간단 버전)
-SERVER_CONFIG = {
-    'url': 'http://100.123.1.124:5000/manager_db/snack_stock',   # 서버 URL
-    'timeout': 5,                                           # 타임아웃 (초)
-    'device_id': 'adminlee'                                 # 디바이스 ID
-}

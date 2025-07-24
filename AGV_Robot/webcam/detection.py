@@ -9,7 +9,6 @@ from collections import deque, Counter
 from webcam.tracker import ObjectTracker
 from webcam.count_reports import print_final_report
 from webcam.config import *
-from webcam.upload_count import send_to_server
 
 class SnackDetector:
     def __init__(self, model_path=MODEL_PATH):
@@ -23,10 +22,13 @@ class SnackDetector:
         self.frame_count = 0
         self.conf_threshold = CONFIDENCE_THRESHOLD
         
-        # 15회 관찰 관련 변수들
+        # 관찰 관련 변수들
         self.observation_count = 0  # 현재 관찰 횟수
         self.observation_results = []  # 각 관찰의 결과 저장
         self.max_observations = OBSERVATION_CONFIG['max_observations']
+        
+        # 최종 결과 저장
+        self.final_results = None
         
     def initialize_model(self):
         """모델 초기화"""
@@ -39,7 +41,7 @@ class SnackDetector:
     def initialize_camera(self):
         """카메라 초기화"""
         print("📹 웹캠 초기화 중...")
-        self.cap = cv2.VideoCapture(2)
+        self.cap = cv2.VideoCapture(0)
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, CAMERA_CONFIG['buffer_size'])
         
         # 라즈베리파이 최적화된 해상도
@@ -183,14 +185,15 @@ class SnackDetector:
         print(f"📝 관찰 {self.observation_count} 결과 기록 완료")
     
     def analyze_final_results(self):
-        """15회 관찰 완료 후 빈도 기반 최종 분석"""
+        """관찰 완료 후 빈도 기반 최종 분석"""
         print("\n" + "="*60)
-        print("📊 15회 관찰 완료 - 빈도 기반 최종 분석")
+        print(f"📊 {self.max_observations}회 관찰 완료 - 빈도 기반 최종 분석")
         print("="*60)
         
         if not self.observation_results:
             print("❌ 관찰 결과가 없습니다.")
-            return
+            self.final_results = {}
+            return self.final_results
         
         # 모든 등장한 클래스 수집
         all_classes = set()
@@ -225,24 +228,81 @@ class SnackDetector:
                 name_parts = class_name.split('_')
                 display_name = f"{name_parts[0]}_{name_parts[1]}" if len(name_parts) >= 2 else class_name
                 
-                print(f"  ✅ {display_name}: {most_frequent_count}개 (빈도: {frequency_score:.2f}, 등장: {final_results[class_name]['appeared_in']}/15회)")
+                print(f"  ✅ {display_name}: {most_frequent_count}개 (빈도: {frequency_score:.2f}, 등장: {final_results[class_name]['appeared_in']}/{self.max_observations}회)")
         
         print(f"\n📋 최종 결과:")
         print(f"  총 제품 수: {total_products}개")
         print(f"  제품 종류: {len(final_results)}가지")
 
-        if final_results:
-            send_to_server(final_results)
+        # 최종 결과 저장
+        self.final_results = final_results
+        return final_results
+    
+    # ==================== 결과 반환 함수들 ====================
+    
+    def get_current_detection_results(self):
+        """현재 탐지 결과 반환"""
+        if not self.tracker:
+            return {
+                'class_counts': {},
+                'total_count': 0,
+                'stable_objects': [],
+                'observation_count': self.observation_count
+            }
+        
+        class_counts, total_count = self.tracker.get_count_summary()
+        return {
+            'class_counts': dict(class_counts),
+            'total_count': total_count,
+            'stable_objects': self.tracker.stable_objects,
+            'observation_count': self.observation_count
+        }
+    
+    def get_final_results(self):
+        """관찰 완료 후 최종 결과 반환"""
+        if self.final_results is None:
+            return {
+                'final_counts': {},
+                'total_products': 0,
+                'product_types': 0,
+                'is_complete': False,
+                'observation_results': self.observation_results
+            }
+        
+        total_products = sum(item['count'] for item in self.final_results.values())
+        
+        return {
+            'final_counts': {class_name: info['count'] for class_name, info in self.final_results.items()},
+            'total_products': total_products,
+            'product_types': len(self.final_results),
+            'is_complete': True,
+            'observation_results': self.observation_results,
+            'detailed_results': self.final_results
+        }
+    
+    def get_count_summary(self):
+        """간단한 개수 요약 반환"""
+        if self.final_results:
+            # 관찰 완료된 경우
+            return {class_name: info['count'] for class_name, info in self.final_results.items()}
+        elif self.tracker:
+            # 진행 중인 경우
+            class_counts, _ = self.tracker.get_count_summary()
+            return dict(class_counts)
         else:
-            print("⚠️ 전송할 결과가 없습니다.")
-            
+            return {}
+    
+    def is_detection_complete(self):
+        """탐지 완료 여부 반환"""
+        return self.observation_count >= self.max_observations and self.final_results is not None
+        
     def is_observation_complete(self):
-        """15회 관찰 완료 여부 확인"""
+        """관찰 완료 여부 확인"""
         return self.observation_count >= self.max_observations
         
     def run(self):
         """메인 실행 함수 (터미널 전용)"""
-        print("🍪 Level 2 Multi-frame Voting 15회 관찰 시스템 (터미널 모드)")
+        print("🍪 Level 2 Multi-frame Voting 관찰 시스템 (터미널 모드)")
         print(f"🎯 총 {self.max_observations}회 관찰 후 빈도 기반 최종 판정")
         print("=" * 60)
         
@@ -253,7 +313,7 @@ class SnackDetector:
         
         print(f"\n🎯 {self.max_observations}회 관찰 시작!")
         print(f"  detection 간격: 매 {CAMERA_CONFIG['detection_interval']}프레임")
-        print("  종료: 15회 관찰 완료 또는 Ctrl+C")
+        print(f"  종료: {self.max_observations}회 관찰 완료 또는 Ctrl+C")
         print("=" * 60)
         
         # FPS 측정
@@ -282,9 +342,9 @@ class SnackDetector:
                 
                 # 탐지는 설정된 간격마다
                 if self.frame_count % CAMERA_CONFIG['detection_interval'] == 0:
-                    # 15회 관찰 완료 체크
+                    # 관찰 완료 체크
                     if self.is_observation_complete():
-                        print("\n🎉 15회 관찰 완료! 최종 분석을 시작합니다.")
+                        print(f"\n🎉 {self.max_observations}회 관찰 완료! 최종 분석을 시작합니다.")
                         break
                     
                     print(f"\n🔍 탐지 실행... (프레임 {self.frame_count})")
@@ -331,13 +391,55 @@ class SnackDetector:
         self.cap.release()
         print("🔚 Level 2 객체 개수 파악 시스템 종료")
 
-# 간단한 실행 함수
+# ==================== 전역 함수들 ====================
+
+# 전역 detector 인스턴스
+_global_detector = None
+
 def detect_start(model_path=MODEL_PATH):
     """웹캠 객체 탐지 시작 - 터미널 모드"""
+    global _global_detector
     print("🚀 웹캠 객체 탐지 시스템 시작 (터미널 모드)...")
-    detector = SnackDetector(model_path=model_path)
-    detector.run()
+    _global_detector = SnackDetector(model_path=model_path)
+    _global_detector.run()
+    return _global_detector
 
 def detect_stop():
     """웹캠 객체 탐지 중지"""
     print("⏹️ 프로그램 종료를 위해서는 Ctrl+C를 사용하세요")
+
+def get_detection_results():
+    """현재 탐지 결과 반환 (전역 함수)"""
+    global _global_detector
+    if _global_detector is None:
+        return {
+            'error': '탐지기가 초기화되지 않았습니다. detect_start()를 먼저 실행하세요.',
+            'class_counts': {},
+            'total_count': 0
+        }
+    return _global_detector.get_current_detection_results()
+
+def get_final_results():
+    """최종 결과 반환 (전역 함수)"""
+    global _global_detector
+    if _global_detector is None:
+        return {
+            'error': '탐지기가 초기화되지 않았습니다.',
+            'final_counts': {},
+            'is_complete': False
+        }
+    return _global_detector.get_final_results()
+
+def get_count_summary():
+    """개수 요약 반환 (전역 함수)"""
+    global _global_detector
+    if _global_detector is None:
+        return {}
+    return _global_detector.get_count_summary()
+
+def is_detection_complete():
+    """탐지 완료 여부 반환 (전역 함수)"""
+    global _global_detector
+    if _global_detector is None:
+        return False
+    return _global_detector.is_detection_complete()
