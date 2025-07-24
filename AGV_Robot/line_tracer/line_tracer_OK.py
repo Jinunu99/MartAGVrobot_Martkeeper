@@ -5,27 +5,22 @@ class LineTracer:
     def __init__(self, roi_boxes=None):
         if roi_boxes is None:
             self.roi_boxes = [
-                # (360, 410, 100, 540),
-                # (295, 345, 100, 540),
-                # (230, 280, 100, 540),
-                # (165, 215, 100, 540),
-                # (100, 150, 100, 540)
-                (240, 285, 100, 540),
-                (190, 235, 100, 540),
-                (140, 185, 100, 540),
-                (90, 135, 100, 540),
-                (40, 85, 100, 540)
+                (400, 445, 100, 540),
+                (340, 395, 100, 540),
+                (280, 335, 100, 540),
+                (220, 275, 100, 540),
+                (160, 215, 100, 540)
             ]
         else:
             self.roi_boxes = roi_boxes
 
-        # HSV 마스크 범위 설정 (검정색 선)
+        # HSV 마스크 범위 설정
         self.lower_hsv = np.array([0, 0, 0])
         self.upper_hsv = np.array([179, 255, 80])
 
-
-        # ROI 가중치 (하단일수록 높음)
+        # ROI 가중치 (하단이 더 중요, 상단은 덜 중요)
         self.weights = [0.3, 0.26, 0.22, 0.18, 0.14]
+        # self.weights = [0.14, 0.18, 0.22, 0.26, 0.3]
 
     def get_offset(self, frame):
         annotated = frame.copy()
@@ -36,7 +31,6 @@ class LineTracer:
         weighted_sum = 0
         total_weight = 0
         binary = None
-        line_presence = []
 
         hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
 
@@ -46,12 +40,10 @@ class LineTracer:
 
             contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             if not contours:
-                line_presence.append(False)
                 continue
 
             largest = max(contours, key=cv2.contourArea)
             if cv2.contourArea(largest) < 300:
-                line_presence.append(False)
                 continue
 
             x, y, w_box, h_box = cv2.boundingRect(largest)
@@ -61,45 +53,29 @@ class LineTracer:
             weight = self.weights[i]
             weighted_sum += offset * weight
             total_weight += weight
-            line_presence.append(True)
 
             cv2.rectangle(annotated, (x1 + x, y1 + y), (x1 + x + w_box, y1 + y + h_box), (0, 255, 0), 2)
             cv2.circle(annotated, (line_cx, (y1 + y2) // 2), 4, (255, 255, 255), -1)
 
         if total_weight == 0:
-            return 0, annotated, np.zeros((1, 1), dtype=np.uint8), False, line_presence
+            return 0, annotated, np.zeros((1, 1), dtype=np.uint8), False
 
         weighted_offset = int(weighted_sum / total_weight)
-        return weighted_offset, annotated, binary, True, line_presence
-
+        return weighted_offset, annotated, binary, True
+    
     def get_direction(self, frame):
-        offset, annotated, binary, found, presence = self.get_offset(frame)
+        offset, annotated, binary, found = self.get_offset(frame)
 
-        # # 90도 꺾임 감지: 상단 ROI 2개가 비어 있고, 하단은 감지됨
-        # if presence[:2] == [False, False] and presence[2:].count(True) >= 2:
-        #     if offset > 30:
-        #         direction = "R90"
-        #     elif offset < -30:
-        #         direction = "L90"
-        #     else:
-        #         direction = "S"
-
-        # else:
-        #     if not found:
-        #         direction = "S"
-        #     elif offset < -70:
-        #         direction = "L"
-        #     elif offset > 70:
-        #         direction = "R"
-        #     else:
-        #         direction = "F"
-        
         if not found:
             direction = "S"
         elif offset < -70:
             direction = "L"
+        elif offset < -50:
+            direction = "LF"
         elif offset > 70:
             direction = "R"
+        elif offset > 50:
+            direction = "RF"
         else:
             direction = "F"
 
@@ -114,3 +90,5 @@ class LineTracer:
             return combined
         else:
             return annotated
+    
+    

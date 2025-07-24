@@ -4,136 +4,127 @@ import cv2
 import time
 import re  # 좌표 추출을 위한 정규식 사용
 import json
+import threading
+# from utils.buffer import tx_queue  # UART 전송 큐 사용
 import paho.mqtt.client as mqtt
 
+class SharedFrame:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.frame = None
+
+    def set(self, frame):
+        with self.lock:
+            self.frame = frame.copy()
+
+    def get(self):
+        with self.lock:
+            return self.frame.copy() if self.frame is not None else None
+        
 
 class QRReader:
-    def __init__(self, cooldown=2):
+    def __init__(self, cooldown=1):
         self.last_id = None
         self.last_time = 0
         self.cooldown = cooldown
 
     def scan(self, frame):
-        result = []
-        decoded = decode(frame)  # 프레임에서 QR 코드 디코딩
+        # h, w = frame.shape[:2]
+        # y1 = int(h * 2 / 3)
+        # roi = frame[y1:, :]  # 하단 1/3
+        # roi_h, roi_w = roi.shape[:2]
+        # small = cv2.resize(roi, (320, 80))  # downscale
+        # scale_x = roi_w / 320
+        # scale_y = roi_h / 80
+        small = cv2.resize(frame, (320, 240))
+        scale_x = frame.shape[1] / 320
+        scale_y = frame.shape[0] / 240
+
+        decoded = decode(small)
         now = time.time()
+        result = []
 
         for obj in decoded:
-            qr_results = obj.data.decode() # QR에서 추출한 문자열 (예: "ID:001,X:2,Y:4")
-
-             # 중복 전송 방지 (cooldown 시간 내 동일 ID 무시)
+            qr_results = obj.data.decode()
             if qr_results == self.last_id and now - self.last_time < self.cooldown:
                 continue
             self.last_id = qr_results
             self.last_time = now
 
-            # 기본 리턴 딕셔너리 구성
             parsed_qr = {
-                "raw": qr_results,  # 원본 문자열도 항상 포함
-                "x": None,
-                "y": None,
+                "raw": qr_results,
                 "id": None
             }
 
-            # 좌표 포함된 QR 형식이면 파싱 시도
             try:
-                match = re.search(r"ID:(\d+),X:(\d+),Y:(\d+)", qr_results)
+                match = re.search(r"ID:(\d+)", qr_results)
                 if match:
                     parsed_qr["id"] = f"ID:{match.group(1)}"
-                    parsed_qr["x"] = int(match.group(2))
-                    parsed_qr["y"] = int(match.group(3))
             except Exception as e:
                 print(f"[QRReader] 좌표 파싱 실패: {e}")
 
-            # 시각화: QR 인식된 위치에 사각형 + 텍스트 표시
-            x, y, w, h = obj.rect
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            cv2.putText(frame, qr_results, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.7, (0, 255, 0), 2)
+            # 1️⃣ small 기준 좌표 → roi 기준 → frame 기준으로 변환!
+            x, y, w_box, h_box = obj.rect
+            x = int(x * scale_x)
+            y = int(y * scale_y)
+            w_box = int(w_box * scale_x)
+            h_box = int(h_box * scale_y)
+            # roi는 frame[y1:, :] → y1만큼 y좌표를 더해줘야 함
+            #y += y1
 
-            result.append(parsed_qr)  # 좌표까지 포함한 dict 형태로 결과 추가
+            # (선택) QR 너무 작으면 무시
+            if w_box * h_box < 300:
+                continue
 
-        return result  # 리스트 형태로 여러 QR 인식 결과 반환
+            cv2.rectangle(frame, (x, y), (x + w_box, y + h_box), (0, 255, 0), 2)
+            cv2.putText(frame, qr_results, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
-# from pyzbar.pyzbar import decode
-# import cv2
-# import time
-# import mysql.connector
-# import re
+            result.append(parsed_qr)
 
-# class QRReader:
-#     def __init__(self, cooldown=2):
-#         self.last_id = None
-#         self.last_time = 0
-#         self.cooldown = cooldown
+        return result
 
-#         # MariaDB 연결 설정
-#         self.db_config = {
-#             'user': 'root',
-#             'password': '',  # 비밀번호가 있으면 입력
-#             'host': 'localhost',
-#             'database': 'qr_reader'
-#         }
+def qr_thread_func(shared_frame, qr_reader, agv_messenger):
+    while True:
+        frame = shared_frame.get()
+        if frame is None:
+            time.sleep(0.05)
+            continue
 
-#     def scan(self, frame):
-#         result = []
-#         decoded = decode(frame)
-#         now = time.time()
+        qr_results = qr_reader.scan(frame)
+        for qr in qr_results:
+            if qr["id"]:
+                agv_messenger.send_qr_info(qr["id"])
+        time.sleep(0.15)
 
-#         for obj in decoded:
-#             qr_id = obj.data.decode().strip()
+if __name__=='__main__':
+    from picamera2 import Picamera2
 
-#             # 중복 전송 방지
-#             if qr_id == self.last_id and now - self.last_time < self.cooldown:
-#                 continue
+    picam2 = Picamera2()
+    picam2.configure(
+    picam2.create_video_configuration(
+        main={"format": "RGB888", "size": (640, 480)},
+        controls={"FrameDurationLimits": (10000, 10000)}  # 100fps 시도
+        )
+    )
 
-#             self.last_id = qr_id
-#             self.last_time = now
+    picam2.start()
 
-#             parsed = {
-#                 "raw": qr_id,
-#                 "id": None,
-#                 "x": None,
-#                 "y": None
-#             }
+    shared_frame = SharedFrame()
+    qr_reader = QRReader(cooldown=1)
 
-#             if qr_id.startswith("ID:"):
-#                 parsed["id"] = qr_id
+    # 메인 스레드는 종료되지 않게 대기
+    try:
+        while True:
+            frame = picam2.capture_array()
 
-#                 # DB에서 매핑된 좌표 조회
-#                 coord = self.lookup_coordinates(qr_id)
-#                 if coord:
-#                     parsed["x"] = coord["x"]
-#                     parsed["y"] = coord["y"]
-#                     print(f"[QRReader] 매핑 성공: {qr_id} → {coord}")
-#                 else:
-#                     print(f"[QRReader] DB에 {qr_id} 없음")
+            qr_id = qr_reader.scan(frame)
+            print(qr_id)
 
-#             else:
-#                 print(f"[QRReader] 알 수 없는 QR 형식 무시됨: {qr_id}")
+            cv2.imshow("QR Code", frame)
 
-#             # 디버깅용 사각형 표시
-#             x, y, w, h = obj.rect
-#             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-#             cv2.putText(frame, qr_id, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX,
-#                         0.7, (0, 255, 0), 2)
+            if cv2.waitKey(1) & 0xFF in (ord('q'), 27):
+                break
 
-#             result.append(parsed)
-
-#         return result
-
-#     def lookup_coordinates(self, qr_id):
-#         try:
-#             conn = mysql.connector.connect(**self.db_config)
-#             cursor = conn.cursor(dictionary=True)
-
-#             cursor.execute("SELECT x, y FROM qr_table WHERE id = %s", (qr_id,))
-#             result = cursor.fetchone()
-
-#             cursor.close()
-#             conn.close()
-
-#             return result  # 예: {'x': 1, 'y': 0}
-#         except mysql.connector.Error as err:
-#             print(f"[DB ERROR] {err}")
-#             return None
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("종료합니다.")
