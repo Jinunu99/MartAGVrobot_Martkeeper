@@ -1,19 +1,16 @@
-# MartAGVrobot_Martkeeper
-
-## 사회적약자에게 효율적인 쇼핑과 직원에게 생산성을 향상시키는 AGV
-### "사회적약자에게 만족스러운 쇼핑 경험을 제공하기 위해 구매하고자하는 물품의 위치로 안내하고
-### 직원의 생산성을 향상시키기 위해  일정시간 마다 재고를 파악하는 프로젝트입니다"
-
-
+# 사회적약자에게 효율적인 쇼핑과 직원에게 생산성을 향상시키는 AGV  
   
-[Intel] 엣지 AI SW 아카데미 13기  
+## 개요
+사회적약자에게 만족스러운 쇼핑 경험을 제공하기 위해 구매하고자하는 물품의 위치로 안내하고  
+직원의 생산성을 향상시키기 위해 일정시간마다 재고를 파악하는 프로젝트입니다
+  
+개발 기간 : 2025.07.12 ~ 07.25 (추가 진행 예정)  
 팀명 : Mart Keeper  
 팀장 : 우진우  
 팀원 : 오현수, 이윤성, 이종희  
   
   
-  
-`< 본 프로젝트에서 구현하고자 하는 핵심기능 >`  
+## 프로젝트 핵심기능
 1. 사용자 AGV  
    * 사용자는 GUI를 통해 원하는 물품을 선택한다.
    * 선택한 물품의 최소 이동 경로를 결정하여 AGV를 이동한다.
@@ -25,17 +22,9 @@
 
 3. 공통  
    * AGV는 QR 인식을 통해 자신의 위치를 파악하고 카메라를 통해 라인을 인식하며 이동한다.
-   * Mesh 네트워크를 구축하여 서로의 위치를 공유한다.model/Model_README.md
+   * Mesh 네트워크를 구축하여 서로의 위치를 공유한다.
   
-  
-## USECASE Diagram  
-<img width="698" height="571" alt="Image" src="https://github.com/user-attachments/assets/fb9f603c-180b-4c33-b9d5-93e67859392e" />  
-
-  
-## High Level Design
-<img width="769" height="505" alt="Image" src="https://github.com/user-attachments/assets/00f3d486-be05-4c23-9fb6-ddde2aca593c" />  
-
-
+## 하드웨어
 `< Raspberry Pi >`  
 1. GUI  
    * 고객 : 원하는 물품을 고를 수 있도록 구성  
@@ -46,11 +35,18 @@
 3. LoRa  
    * Mesh 네트워크 구성 (AGV 위치 정보 공유)  
   
-
 `< STM32 >`  
 1. Motor Control  
 2. 적외선 Sensor : 사용자 AGV가 관리자 AGV를 감지하면 길을 터줌  
 3. IMU  
+  
+## USECASE Diagram  
+<img width="698" height="571" alt="Image" src="https://github.com/user-attachments/assets/fb9f603c-180b-4c33-b9d5-93e67859392e" />  
+
+  
+## High Level Design
+<img width="769" height="505" alt="Image" src="https://github.com/user-attachments/assets/00f3d486-be05-4c23-9fb6-ddde2aca593c" />  
+
   
 ## Clone code
 
@@ -114,10 +110,4 @@ python demo.py -i xxx -m yyy -d zzz
 
 ## Output
 
-* (프로젝트 실행 화면 캡쳐)
 
-![./result.jpg](./result.jpg)
-
-## Appendix
-
-* (참고 자료 및 알아두어야할 사항들 기술)
