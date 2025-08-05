@@ -92,15 +92,14 @@ class UserShoppingGui(QtWidgets.QWidget):
         self.textEdit_log.append("계산대로 이동합니다.")
 
     
-
     # AGV 연결
     def connect_agv(self):
         agv_name = self.comboBox.currentText()
         
         if agv_name == "userAGV1":
-            self.agv_ip = "192.168.137.55"
+            self.agv_ip = "100.74.202.35"
         elif agv_name == "userAGV2":
-            self.agv_ip = "192.168.137.55" # 주소에 맞게 바꿔야 함
+            self.agv_ip = "100.79.122.100" # 주소에 맞게 바꿔야 함
         
         if self.controll_to_agv is None:
             self.controll_to_agv = ControllToAgv(self.agv_ip, self.agv_port)
