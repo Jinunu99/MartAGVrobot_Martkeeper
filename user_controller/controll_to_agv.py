@@ -47,14 +47,18 @@ class ControllToAgv:
         self.move_flag = True
 
     def connect(self):
-        self.client_socket.connect((self.agv_ip, self.agv_port))
-        print(f"AGV와 연결 완료 - {self.agv_ip}:{self.agv_port}")
+        try:
+            self.client_socket.connect((self.agv_ip, self.agv_port))
+            print(f"AGV와 연결 완료 - {self.agv_ip}:{self.agv_port}")
 
-        self.send_thread = threading.Thread(target=self.send_to_agv, daemon=True)
-        self.recv_thread = threading.Thread(target=self.recv_from_agv, daemon=True)
+            self.send_thread = threading.Thread(target=self.send_to_agv, daemon=True)
+            self.recv_thread = threading.Thread(target=self.recv_from_agv, daemon=True)
 
-        self.send_thread.start()
-        self.recv_thread.start()
+            self.send_thread.start()
+            self.recv_thread.start()
+
+        except Exception as e:
+            print(f"AGV와 연결 실패: {e}")
 
     # 송신할 프레임
     def send_frame(self):
