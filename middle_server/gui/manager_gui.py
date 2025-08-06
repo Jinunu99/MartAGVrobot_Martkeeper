@@ -8,6 +8,16 @@ from PyQt5.QtCore import Qt, pyqtSlot, pyqtSignal
 
 import pymysql
 
+    PRODUCT_MAPPING = {
+    0: "crown_Potto_Cheese_Tart_322G",  # 뽀또
+    1: "haetae_Osajjeu_60G",            # 오사쯔  
+    2: "crown_Concho_66G",              # 콘초
+    3: "crown_ChocoHaim_142G",          # 초쿄하임
+    4: "orion_Pocachip_Original_66G",   # 포카칩
+    5: "orion_Gosomi_80G"               # 고소미
+}
+
+
 class ManagerGUI(QWidget):
     # 시그널 변수 선언
     agv_position_updated = pyqtSignal(str, int, int)
@@ -47,6 +57,21 @@ class ManagerGUI(QWidget):
         self.snack_name = ["뽀또", "오사쯔", "콘초", "초쿄하임", "포카칩", "고소미"] # 과자 재고 이름
         self.snack_position = [[0, 1], [0, 3], [0, 5], [4, 1], [4, 3], [4, 5]] # 과자 재고 위치
         self.snack_num = [0, 0, 0, 0, 0, 0] # 과자 재고 갯수
+
+
+         # ✅ 여기에 매핑 테이블 추가
+        # 인덱스 → DB 제품명 매핑
+        self.PRODUCT_MAPPING = {
+            0: "crown_Potto_Cheese_Tart_322G",  # 뽀또
+            1: "haetae_Osajjeu_60G",            # 오사쯔  
+            2: "crown_Concho_66G",              # 콘초
+            3: "crown_ChocoHaim_142G",          # 초쿄하임
+            4: "orion_Pocachip_Original_66G",   # 포카칩
+            5: "orion_Gosomi_80G"               # 고소미
+        }
+
+        # DB 제품명 → 인덱스 매핑 (역방향)
+        self.PRODUCT_REVERSE_MAPPING = {v: k for k, v in self.PRODUCT_MAPPING.items()}
 
         for i in range(6):
             label = getattr(self, f"lbl_snack_name{i + 1}")
@@ -146,6 +171,7 @@ class ManagerGUI(QWidget):
                                       self.cell_size, self.cell_size)
             block.setBrush(QBrush(Qt.black))
             self.scene.addItem(block)
+
 
     
 

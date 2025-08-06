@@ -41,3 +41,11 @@ class DbConnect:
             conn.commit()
         finally:
             conn.close()
+
+    def update_detection_results(self, detection_results):
+        """
+        탐지 결과를 DB에 업데이트
+        """
+        for product_name, count in detection_results.items():
+            self.update_snack_stock(product_name, count)
+            print(f"DB 업데이트: {product_name} → {count}개")

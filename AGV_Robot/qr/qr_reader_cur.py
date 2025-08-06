@@ -36,9 +36,9 @@ class QRReader:
         # small = cv2.resize(roi, (320, 80))  # downscale
         # scale_x = roi_w / 320
         # scale_y = roi_h / 80
-        small = cv2.resize(frame, (320, 240))
-        scale_x = frame.shape[1] / 320
-        scale_y = frame.shape[0] / 240
+        small = cv2.resize(frame, (320, 240)) # 320 240
+        scale_x = frame.shape[1] / 320  # 320
+        scale_y = frame.shape[0] / 240  # 240
 
         decoded = decode(small)
         now = time.time()
@@ -73,7 +73,7 @@ class QRReader:
             #y += y1
 
             # (선택) QR 너무 작으면 무시
-            if w_box * h_box < 300:
+            if w_box * h_box < 50:
                 continue
 
             cv2.rectangle(frame, (x, y), (x + w_box, y + h_box), (0, 255, 0), 2)

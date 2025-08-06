@@ -86,10 +86,13 @@ class RecvFromAgv:
             qr_id = self.agv_qr[self.agv_idx]
 
             if "snack_num" in data: # 재고 갯수를 저장
-                self.snack_num = data["snack_num"]
+                self.snack_num = data["snack_num"] # {'haetae_Osajjeu_60G': 1}
 
-                # GUI에 재고 갱신
-                self.manager_gui.snack_updated.emit(idx, data['snack_num'])
+                # # GUI에 재고 갱신
+                # self.manager_gui.snack_updated.emit(idx, data['snack_num'])
+                for product_name, count in detection_results.items():
+                    self.manager_gui.db_manager.update_snack_stock(product_name, count)
+                    print(f"DB 업데이트: {product_name} → {count}개")
 
             # --- MariaDB에서 해당 QR ID로 x, y 좌표를 조회 ---
             x, y = self.lookup_coordinates(qr_id)

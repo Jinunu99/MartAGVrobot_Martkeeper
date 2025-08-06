@@ -116,7 +116,7 @@ if __name__ == "__main__":
             tx_queue.put(direction + "\n")
 
             # line_tracer 값 출력
-            print(f"[MAIN] Direction={direction}, Offset={offset}, Found={found}")
+            # print(f"[MAIN] Direction={direction}, Offset={offset}, Found={found}")
 
             # 디버깅 이미지 표시
             # combined = tracer.draw_debug(annotated, binary)

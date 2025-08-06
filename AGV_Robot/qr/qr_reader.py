@@ -36,9 +36,12 @@ class QRReader:
         # small = cv2.resize(roi, (320, 80))  # downscale
         # scale_x = roi_w / 320
         # scale_y = roi_h / 80
-        small = cv2.resize(frame, (320, 240))
-        scale_x = frame.shape[1] / 320
-        scale_y = frame.shape[0] / 240
+        frame = cv2.convertScaleAbs(cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY), alpha=1.3, beta=20)
+        frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)  # 다시 RGB로
+
+        small = cv2.resize(frame, (320, 240))   # 320 240
+        scale_x = frame.shape[1] / 320          # 320
+        scale_y = frame.shape[0] / 240          # 240
 
         decoded = decode(small)
         now = time.time()
@@ -73,8 +76,8 @@ class QRReader:
             #y += y1
 
             # (선택) QR 너무 작으면 무시
-            if w_box * h_box < 300:
-                continue
+            # if w_box * h_box < 100:
+            #     continue
 
             cv2.rectangle(frame, (x, y), (x + w_box, y + h_box), (0, 255, 0), 2)
             cv2.putText(frame, qr_results, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
@@ -112,6 +115,9 @@ if __name__=='__main__':
         controls={"FrameDurationLimits": (10000, 10000)}  # 100fps 시도
         )
     )
+
+
+
 
     picam2.start()
 

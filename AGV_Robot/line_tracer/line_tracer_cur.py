@@ -50,7 +50,7 @@ class LineTracer:
                 continue
 
             largest = max(contours, key=cv2.contourArea)
-            if cv2.contourArea(largest) < 300:
+            if cv2.contourArea(largest) < 100:
                 line_presence.append(False)
                 continue
 
