@@ -26,7 +26,8 @@ class AgvToControll:
         self.target_y = 0         # AGV 다음 y 위치
 
         # 수신할 변수
-
+        self.shopping_list = None
+        self.move_flag = False
 
         # 스레드 관련 변수
         self.running = False
@@ -99,6 +100,8 @@ class AgvToControll:
     # (AGV -> 컨트롤러): 컨트롤러에 데이터를 송신함
     def send_to_controller(self):
         while self.running:
+
+            # set_position 함수가 불러질 때까지 여기서 송신을 대기함
             self.send_event.wait() # 이벤트가 발생될때까지 대기
             self.send_event.clear() # 이벤트 다시 비활성화
 
@@ -123,6 +126,13 @@ class AgvToControll:
                     break
                 recv_data = recv_data.decode()
                 print(f"수신 데이터: {recv_data}")
+
+                recv_json = json.loads(recv_data)
+
+                if "snack_cart" in recv_data:
+                    self.shopping_list = recv_json["snack_cart"]
+                if "move_flag" in recv_data:
+                    self.move_flag = recv_json["move_flag"]
                 
                 if recv_data == "disconnect": # 연결 해제
                     break
