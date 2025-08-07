@@ -5,6 +5,19 @@ from SX127x.LoRa import LoRa
 from SX127x.board_config import BOARD
 from SX127x.constants import *
 
+def crc16(data: bytes, poly=0x1021, start=0xFFFF):
+    crc = start
+    for b in data:
+        crc ^= b << 8
+        for _ in range(8):
+            if crc & 0x8000:
+                crc = (crc << 1) ^ poly
+            else:
+                crc <<= 1
+            crc &= 0xFFFF
+    return crc
+
+
 # LoRa 모듈 클래스 (기존과 동일)
 class MeshAGV(LoRa):
     def __init__(self, agv_name, verbose=False):
@@ -24,27 +37,65 @@ class MeshAGV(LoRa):
 
         # 수신데이터를 AgvToAgv 클래스에 반환하기 위함
         self.recv_callback = None
-    
+
     def set_recv_callback(self, callback):
         self.recv_callback = callback
 
     def on_rx_done(self):
         payload = self.read_payload(nocheck=True)
+
+        # 원본 출력
+        msg = ''.join([chr(c) for c in payload if 32 <= c <= 126])
+        print(f"[DEBUG] 수신된 원본 메시지: {repr(msg)}")
+
+        # 문자열 클린징
+        msg_clean = msg.strip('\x00\r\n ')
+        if not msg_clean or not msg_clean.startswith('{') or not msg_clean.endswith('}'):
+            print(f"[경고] JSON 패킷 불완전 or 비어있음: {repr(msg_clean)}")
+            self.set_mode(MODE.SLEEP)
+            self.reset_ptr_rx()
+            self.set_dio_mapping([0,0,0,0,0,0])  # DIO0=RxDone
+            self.set_mode(MODE.RXCONT)
+            return
+
+        # JSON 파싱
         try:
-            msg = ''.join([chr(c) for c in payload if 32 <= c <= 126])
-            packet = json.loads(msg)
-            dst = packet.get("dst", "")
-            if dst == self.agv_name or dst == "all":
-                print(f"[{self.agv_name}] 수신완료!: {msg}")
-                print(f"[{self.agv_name}] ==> {packet['src']}로부터 x={packet['x']} y={packet['y']}")
-                if self.recv_callback:
-                    self.recv_callback(packet)
+            packet = json.loads(msg_clean)
         except Exception as e:
-            pass
+            print(f"[에러] 패킷 파싱 실패: {e} | 원본: {repr(msg_clean)}")
+            self.set_mode(MODE.SLEEP)
+            self.reset_ptr_rx()
+            self.set_dio_mapping([0,0,0,0,0,0])  # DIO0=RxDone
+            self.set_mode(MODE.RXCONT)
+            return
+
+        # CRC 검증
+        try:
+            recv_crc = packet.get("crc")
+            temp_dict = packet.copy()
+            temp_dict.pop("crc", None)
+            packet_bytes = json.dumps(temp_dict, sort_keys=True).encode("utf-8")
+            calc_crc = crc16(packet_bytes)
+
+            if recv_crc is not None and int(recv_crc) == calc_crc:
+                dst = packet.get("dst", "")
+                if dst == self.agv_name or dst == "all":
+                    print(f"[{self.agv_name}] CRC OK, 수신완료!: {msg_clean}")
+                    print(f"[{self.agv_name}] ==> {packet['src']}로부터 x={packet['x']} y={packet['y']}")
+                    if self.recv_callback:
+                        self.recv_callback(packet)
+            else:
+                print(f"[{self.agv_name}] CRC ERROR, 패킷 무시: {msg_clean} (recv_crc={recv_crc}, calc_crc={calc_crc})")
+
+        except Exception as e:
+            print(f"[에러] CRC 검증 중 문제 발생: {e} | 원본: {repr(msg_clean)}")
+
+        # LoRa 수신 대기상태로 복귀
         self.set_mode(MODE.SLEEP)
         self.reset_ptr_rx()
         self.set_dio_mapping([0,0,0,0,0,0])  # DIO0=RxDone
-        self.set_mode(MODE.RXCONT) # 수신 대기상태로 바꿔라
+        self.set_mode(MODE.RXCONT)
+
 
     def on_tx_done(self):
         print(f"[{self.agv_name}] 송신 완료 → RX 대기 진입")
@@ -59,8 +110,8 @@ class AgvToAgv:
 
         # AGV의 모든 위치를 관리하는 변수
         self.total_agv_name = ["userAGV1", "userAGV2", "managerAGV"]
-        self.total_agv_pos_x = [None, None, None]
-        self.total_agv_pos_y = [None, None, None]
+        self.total_agv_pos_x = [0, 0, 0]
+        self.total_agv_pos_y = [0, 0, 0]
 
         # AGV별 송신 타임 슬롯 설정 (6초 주기)
         self.slot_map = {
@@ -93,6 +144,7 @@ class AgvToAgv:
             self.total_agv_pos_x[idx] = x
             self.total_agv_pos_y[idx] = y
 
+
     def main_loop(self):
         prev_slot = None # 이전 슬롯 변수
         while self.running:
@@ -121,8 +173,14 @@ class AgvToAgv:
                     "x": x,
                     "y": y
                 }
+                temp_dict = send_packet.copy()
+                packet_bytes = json.dumps(temp_dict, sort_keys=True).encode("utf-8")
+                crc = crc16(packet_bytes)
+                send_packet["crc"] = crc
+
                 msg = json.dumps(send_packet)
                 payload = [ord(c) for c in msg]
+
                 
                 # 같은 시간 슬롯에 진입했을때 한번만 송신하도록
                 if prev_slot != slot:
