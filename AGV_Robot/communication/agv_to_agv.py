@@ -44,11 +44,11 @@ class MeshAGV(LoRa):
     def on_rx_done(self):
         payload = self.read_payload(nocheck=True)
 
-        # 원본 출력
+        # 1. 원본 출력
         msg = ''.join([chr(c) for c in payload if 32 <= c <= 126])
         print(f"[DEBUG] 수신된 원본 메시지: {repr(msg)}")
 
-        # 문자열 클린징
+        # 2. 문자열 클린징
         msg_clean = msg.strip('\x00\r\n ')
         if not msg_clean or not msg_clean.startswith('{') or not msg_clean.endswith('}'):
             print(f"[경고] JSON 패킷 불완전 or 비어있음: {repr(msg_clean)}")
@@ -58,7 +58,7 @@ class MeshAGV(LoRa):
             self.set_mode(MODE.RXCONT)
             return
 
-        # JSON 파싱
+        # 3. JSON 파싱
         try:
             packet = json.loads(msg_clean)
         except Exception as e:
@@ -69,7 +69,7 @@ class MeshAGV(LoRa):
             self.set_mode(MODE.RXCONT)
             return
 
-        # CRC 검증
+        # 4. CRC 검증
         try:
             recv_crc = packet.get("crc")
             temp_dict = packet.copy()
@@ -90,7 +90,7 @@ class MeshAGV(LoRa):
         except Exception as e:
             print(f"[에러] CRC 검증 중 문제 발생: {e} | 원본: {repr(msg_clean)}")
 
-        # LoRa 수신 대기상태로 복귀
+        # 5. LoRa 수신 대기상태로 복귀
         self.set_mode(MODE.SLEEP)
         self.reset_ptr_rx()
         self.set_dio_mapping([0,0,0,0,0,0])  # DIO0=RxDone
@@ -154,12 +154,13 @@ class AgvToAgv:
             my_slot = self.slot_map.get(self.agv_name) # 해당 AGV의 송신 슬롯의 시간을 반환
             if my_slot == slot: # 해당 AGV가 송신할 시간이 되면
 
-                if self.agv_name == "userAGV1":
-                    self.total_agv_pos_x[0], self.total_agv_pos_x[0] = 100 + self.counter, 200 + self.counter
-                elif self.agv_name == "userAGV2":
-                    self.total_agv_pos_x[1], self.total_agv_pos_x[1] = 300 + self.counter, 400 + self.counter
-                elif self.agv_name == "managerAGV":
-                    self.total_agv_pos_x[2], self.total_agv_pos_x[2] = 500 + self.counter, 600 + self.counter
+                # 송신 테스트용
+                # if self.agv_name == "userAGV1":
+                #     self.total_agv_pos_x[0], self.total_agv_pos_x[0] = 0 + self.counter, 0 + self.counter
+                # elif self.agv_name == "userAGV2":
+                #     self.total_agv_pos_x[1], self.total_agv_pos_x[1] = 1 + self.counter, 1 + self.counter
+                # elif self.agv_name == "managerAGV":
+                #     self.total_agv_pos_x[2], self.total_agv_pos_x[2] = 2 + self.counter, 2 + self.counter
 
                 # 자신의 위치를 담아서 송신할 수 있도록
                 if self.agv_name in self.total_agv_name:
