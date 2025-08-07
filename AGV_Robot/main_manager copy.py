@@ -14,8 +14,6 @@ from communication.agv_to_server import AgvToServer
 
 # 관리자용 모듈들
 from manager import ManagerPlanner, ManagerExecutor, DetectionController, ResourceManager
-# 🔥 DirectionResolver import 추가
-from vision.path_planner import DirectionResolver
 
 def start_uart():
     """UART 송수신 스레드 시작"""
@@ -30,7 +28,6 @@ def main_manager():
     print("🤖 관리자 로봇 시작!")
     print("📋 Detection 포인트 도달 시 Detection 실행 모드")
     print("🎯 Detection 좌표: [0,1], [0,3], [0,5], [4,5], [4,3], [4,1]")
-    print("🔄 Rotation 좌표: [0,0], [0,6], [4,0], [4,5]")  # 🔥 회전 좌표 출력 추가
     print("-" * 60)
 
     # 1) UART 송수신 스레드 시작
@@ -82,22 +79,9 @@ def main_manager():
     # 상태 변수들
     last_detection_position = None  # 마지막 Detection 실행 위치
     detection_in_progress = False   # Detection 진행 중 플래그
-    
-    # 🔥 회전 상태 변수 추가
-    last_rotation_position = None   # 마지막 회전 실행 위치
-    rotation_in_progress = False    # 회전 진행 중 플래그
-
-    # 🔥 회전 방향 계산 도우미 함수
-    def get_clockwise_direction(current_dir):
-        """시계방향으로 90도 회전한 방향 반환"""
-        dirs = ['U', 'R', 'D', 'L']
-        idx = dirs.index(current_dir)
-        return dirs[(idx + 1) % 4]
 
     print(f"[MAIN] 관리자 로봇 초기화 완료")
     print(f"[MAIN] Detection 가능 좌표: {planner.get_detection_coordinates()}")
-    # 🔥 회전 좌표 출력 추가
-    print(f"[MAIN] Rotation 가능 좌표: {planner.get_rotation_coordinates()}")
 
     try:
         while True:
@@ -115,7 +99,6 @@ def main_manager():
                 # Detection 위치 도달 체크 (이전에 실행하지 않은 위치에서만)
                 if (planner.is_detection_point(x, y) and 
                     not detection_in_progress and
-                    not rotation_in_progress and  # 🔥 회전 중이 아닐 때만
                     current_position != last_detection_position):
                     
                     print(f"[MAIN] 🎯 새로운 Detection 위치 도달: {current_position}")
@@ -178,50 +161,10 @@ def main_manager():
                     detection_in_progress = False
                     print(f"[MAIN] 🔄 일반 주행 모드로 전환")
                 
-                # 🔥 회전 위치 도달 체크 (새로운 로직)
-                elif (planner.is_rotation_point(x, y) and 
-                      not rotation_in_progress and
-                      not detection_in_progress and  # Detection 중이 아닐 때만
-                      current_position != last_rotation_position):
-                    
-                    print(f"[MAIN] 🔄 새로운 회전 위치 도달: {current_position}")
-                    
-                    # 회전 시작
-                    rotation_in_progress = True
-                    last_rotation_position = current_position.copy()
-                    executor.stop_execution()  # 현재 실행 중인 명령 중지
-                    
-                    # 현재 RC카 방향 가져오기
-                    current_rc_dir = executor.current_dir
-                    target_dir = get_clockwise_direction(current_rc_dir)
-                    rotation_cmd = DirectionResolver.get_relative_command(current_rc_dir, target_dir)
-                    
-                    print(f"[MAIN] 🔄 회전 시작: {current_rc_dir} → {target_dir} (명령: {rotation_cmd})")
-                    
-                    # 🔥 먼저 앞으로 이동 후 회전 (manager_executor 패턴과 동일)
-                    print(f"[MAIN] 🚗 먼저 전진 후 회전...")
-                    tx_queue.put("F\n")
-                    time.sleep(0.90)  # 전진 시간
-
-
-                    # 회전 실행
-                    tx_queue.put(rotation_cmd + "\n")
-                    time.sleep(0.65)  # 회전 대기
-                    tx_queue.put("S\n")  # 정지
-                    
-                    # executor의 방향 업데이트
-                    executor.current_dir = target_dir
-                    
-                    print(f"[MAIN] ✅ 회전 완료: 새 방향 {target_dir}")
-                    rotation_in_progress = False
-                
                 agv_messenger.received_pos = False
 
-            # 🔥 주행 명령 실행 (Detection과 회전 중이 아닐 때만)
-            if (resource_manager.is_line_tracer_active() and 
-                not detection_in_progress and 
-                not rotation_in_progress):
-                
+            # 주행 명령 실행 (Detection 중이 아닐 때만)
+            if resource_manager.is_line_tracer_active() and not detection_in_progress:
                 # 라인트레이서 동작
                 direction, offset, annotated, binary, found = tracer.get_direction(frame)
                 
@@ -229,7 +172,8 @@ def main_manager():
                 if executor.is_executing():
                     # 한 칸 전진 완료 체크
                     if executor.command_queue and executor.command_queue[0] == 'F':
-                        executor.command_queue.pop(0)
+                        if len(executor.command_queue) == 1:
+                            executor.command_queue.pop(0)
 
                     # 회전 명령 실행
                     if executor.command_queue and executor.command_queue[0] in ('R90', 'L90', 'B', 'B90'):
@@ -245,25 +189,18 @@ def main_manager():
                 # print(f"[MAIN] Direction={direction}, Offset={offset}, Found={found}")
                 # print(f"[MAIN] 현재위치: {status['current_position']}")
                 # print(f"[MAIN] Detection포인트: {status['is_at_detection_point']}")
-                # print(f"[MAIN] Rotation포인트: {status['is_at_rotation_point']}")  # 🔥 회전 포인트 상태 추가
                 # print(f"[MAIN] 실행중: {executor_status['executing']}, 남은명령: {executor_status['commands_remaining']}")
                 
                 # Detection 좌표 표시
                 # if status['is_at_detection_point']:
                 #     print(f"[MAIN] 💡 현재 Detection 가능 위치에 있음!")
-                # 🔥 회전 좌표 표시 추가
-                # if status['is_at_rotation_point']:
-                #     print(f"[MAIN] 🔄 현재 Rotation 가능 위치에 있음!")
             
             else:
-                # 🔥 Detection 또는 회전 중이므로 주행 정지
+                # Detection 중이므로 주행 정지
                 tx_queue.put("S\n")
 
-            # 🔥 디버깅 이미지 표시 (Detection과 회전 중이 아닐 때만)
-            if (resource_manager.is_line_tracer_active() and 
-                not detection_in_progress and 
-                not rotation_in_progress):
-                
+            # 디버깅 이미지 표시 (Detection 중이 아닐 때만)
+            if resource_manager.is_line_tracer_active() and not detection_in_progress:
                 combined = tracer.draw_debug(annotated, binary)
                 
                 # Detection 좌표 표시
@@ -271,11 +208,6 @@ def main_manager():
                 if status['is_at_detection_point']:
                     cv2.putText(combined, "DETECTION POINT", (10, 30), 
                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                
-                # 🔥 회전 포인트 표시 추가
-                if status['is_at_rotation_point']:
-                    cv2.putText(combined, "ROTATION POINT", (10, 70), 
-                               cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
                 
                 # cv2.imshow("Manager Robot - LineTracer", combined)
 
@@ -287,7 +219,7 @@ def main_manager():
     except KeyboardInterrupt:
         print("\n[MAIN] 🛑 사용자 중단 요청")
     except Exception as e:
-        print(f"\n[MAIN] ❌오류 발생: {e}")
+        print(f"\n[MAIN] ❌ 오류 발생: {e}")
     finally:
         print("[MAIN] 🏁 관리자 로봇 종료 중...")
         tx_queue.put("S\n")

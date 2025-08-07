@@ -26,7 +26,8 @@ class AgvToControll:
         self.target_y = 0         # AGV 다음 y 위치
 
         # 수신할 변수
-
+        self.shopping_list = None
+        self.move_flag = False
 
         # 스레드 관련 변수
         self.running = False

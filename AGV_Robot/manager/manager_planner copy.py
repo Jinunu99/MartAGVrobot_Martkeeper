@@ -9,7 +9,7 @@ from vision.path_planner import DirectionResolver
 class ManagerPlanner:
     """
     관리자 로봇용 경로 계획 클래스
-    순환 구조 제거, Detection 좌표에서만 Detection 실행, 회전 좌표에서 회전 실행
+    순환 구조 제거, Detection 좌표에서만 Detection 실행
     """
     
     def __init__(self, position_map):
@@ -24,11 +24,6 @@ class ManagerPlanner:
             [4, 5],  # [3,5] 매대 detection
             [4, 3],  # [3,3] 매대 detection
             [4, 1]   # [3,1] 매대 detection
-        ]
-        
-        # 🔥 회전 가능한 좌표들 추가
-        self.rotation_coordinates = [
-            [0, 0], [0, 6], [4, 0], [4, 6]
         ]
         
         self.current_target = None    # 현재 목표 (수동 설정)
@@ -53,31 +48,10 @@ class ManagerPlanner:
         check_y = y if y is not None else self.now_pos_y
         
         return [check_x, check_y] in self.detection_coordinates
-    
-    # 🔥 회전 포인트 체크 메서드 추가
-    def is_rotation_point(self, x=None, y=None):
-        """
-        현재 위치가 회전 가능한 좌표인지 확인
-        
-        Args:
-            x, y: 확인할 좌표 (None이면 현재 위치 사용)
-        
-        Returns:
-            bool: 회전 가능 여부
-        """
-        check_x = x if x is not None else self.now_pos_x
-        check_y = y if y is not None else self.now_pos_y
-        
-        return [check_x, check_y] in self.rotation_coordinates
         
     def get_detection_coordinates(self):
         """Detection 가능한 모든 좌표 반환"""
         return self.detection_coordinates.copy()
-    
-    # 🔥 회전 좌표 반환 메서드 추가
-    def get_rotation_coordinates(self):
-        """회전 가능한 모든 좌표 반환"""
-        return self.rotation_coordinates.copy()
         
     def set_target(self, target_x, target_y):
         """수동으로 목표 설정"""
@@ -181,8 +155,6 @@ class ManagerPlanner:
             'current_position': [self.now_pos_x, self.now_pos_y],
             'current_target': self.current_target,
             'is_at_detection_point': self.is_detection_point(),
-            'is_at_rotation_point': self.is_rotation_point(),  # 🔥 회전 포인트 상태 추가
             'detection_coordinates': self.detection_coordinates,
-            'rotation_coordinates': self.rotation_coordinates,  # 🔥 회전 좌표 추가
             'path_length': len(self.middle_path)
         }

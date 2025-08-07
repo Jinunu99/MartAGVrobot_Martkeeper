@@ -59,7 +59,7 @@ class ManagerGUI(QWidget):
         self.snack_num = [0, 0, 0, 0, 0, 0] # 과자 재고 갯수
 
 
-         # ✅ 여기에 매핑 테이블 추가
+
         # 인덱스 → DB 제품명 매핑
         self.PRODUCT_MAPPING = {
             0: "crown_Potto_Cheese_Tart_322G",  # 뽀또

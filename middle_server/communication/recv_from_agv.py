@@ -90,7 +90,8 @@ class RecvFromAgv:
 
                 # # GUI에 재고 갱신
                 # self.manager_gui.snack_updated.emit(idx, data['snack_num'])
-                for product_name, count in detection_results.items():
+                # for product_name, count in detection_results.items():
+                for product_name, count in snack_num.items():
                     self.manager_gui.db_manager.update_snack_stock(product_name, count)
                     print(f"DB 업데이트: {product_name} → {count}개")
 
