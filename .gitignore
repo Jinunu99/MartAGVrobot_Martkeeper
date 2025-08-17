@@ -14,7 +14,7 @@ Release/
 *.map
 *.list
 *.su
-
+*.pt
 # OS generated files
 .DS_Store
 Thumbs.db
