@@ -1,8 +1,8 @@
 # 사회적약자에게 효율적인 쇼핑과 직원에게 생산성을 향상시키는 AGV  
 
-| | |
+|고객용 |관리자용 |
 |---|---|
-|![고객용로봇GIF_용량압축](https://github.com/user-attachments/assets/886fb3ab-2629-4c03-8eb2-8ea1eafd7462)<br> 고객용 | ![관리자로봇영상합본_gif_용량압축](https://github.com/user-attachments/assets/6c2fc62b-7269-42cb-a834-36549d08f7f8)<br> 관리자용 |
+|![고객용로봇GIF_용량압축](https://github.com/user-attachments/assets/886fb3ab-2629-4c03-8eb2-8ea1eafd7462)<br> | ![관리자로봇영상합본_gif_용량압축](https://github.com/user-attachments/assets/6c2fc62b-7269-42cb-a834-36549d08f7f8)<br> |
 
 
 
