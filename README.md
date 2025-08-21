@@ -46,13 +46,15 @@
 1. Motor Control  
 2. 적외선 Sensor : 사용자 AGV가 관리자 AGV를 감지하면 길을 터줌  
 3. IMU  
-  
-## USECASE Diagram  
-<img width="698" height="571" alt="Image" src="https://github.com/user-attachments/assets/fb9f603c-180b-4c33-b9d5-93e67859392e" />  
 
+## System Architecture
+<img width="1770" height="798" alt="Image" src="https://github.com/user-attachments/assets/d46841ea-9685-4149-aaf4-edaced206319" />  
+
+## Usecase Diagram  
+<img width="3748" height="2276" alt="Image" src="https://github.com/user-attachments/assets/e0a21bc7-ae8b-4e34-82d0-3ce75e1931cf" />  
   
-## High Level Design
-<img width="769" height="505" alt="Image" src="https://github.com/user-attachments/assets/00f3d486-be05-4c23-9fb6-ddde2aca593c" />  
+## Sequence Diagram
+<img width="3997" height="1786" alt="Image" src="https://github.com/user-attachments/assets/47097458-3134-48dc-85ab-14dadc62dade" />  
 
   
 ## Clone code
